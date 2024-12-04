@@ -3,14 +3,18 @@ import numpy as np
 def extract_ATB(pitches):
     histogram = [0] * 128  # Array untuk pitch 0–127
     for pitch in pitches:
-        histogram[pitch] += 1
+        index = int(round(pitch))
+        if 0 <= index < 128:
+            histogram[index] += 1
     return normalize(histogram) 
 
 def extract_RTB(pitches):
     histogram = [0] * 255  # Array untuk perbedaan -127 hingga +127
     for i in range(len(pitches) - 1):
         diff = pitches[i + 1] - pitches[i]
-        histogram[diff + 127] += 1  # Geser indeks ke 0–254
+        index = int(round(diff)) + 127
+        if 0 <= index < 255:
+            histogram[index] += 1  # Geser indeks ke 0–254
     return normalize(histogram) 
 
 def extract_FTB(pitches):
@@ -18,7 +22,9 @@ def extract_FTB(pitches):
     first_tone = pitches[0]
     for pitch in pitches:
         diff = pitch - first_tone
-        histogram[diff + 127] += 1  # Geser indeks ke 0–254
+        index = int(round(diff)) + 127
+        if 0 <= index < 255:
+            histogram[index] += 1  # Geser indeks ke 0–254
     return normalize(histogram) 
 
 def normalize(histogram):
