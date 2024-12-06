@@ -17,8 +17,8 @@ const Sidebar = () => {
 
   return (
     <div className='w-[25%] h-[100%] p-2 flex-col gap-2 text-white lg-flex'>
-      <div className='bg-[#19191a] h-[100%] rounded flex flex-col justify-around'>
-        <div className='bg-white h-screen flex justify-center items-center rounded m-5'></div>
+      <div className='bg-[#092D3A] h-[100%] rounded flex flex-col justify-around'>
+        <div className='bg-white h-[45%] flex justify-center items-center rounded m-5'></div>
 
         {/* Input file (disembunyikan) */}
         <input
@@ -31,7 +31,7 @@ const Sidebar = () => {
         {/* Tombol Upload */}
         <div className="flex justify-center items-center p-8">
           <button
-            className="px-4 py-2 bg-[#3054d9] text-white rounded"
+            className="px-4 py-2 bg-[#BABEB8] text-[#092D3A] rounded"
             onClick={handleFileUpload}
           >
             Upload
@@ -41,7 +41,7 @@ const Sidebar = () => {
         {/* Tombol Audios */}
         <div className="flex justify-center items-center p-2">
           <button
-            className="px-4 py-2 bg-[#3054d9] text-white rounded"
+            className="px-4 py-2 bg-[#BABEB8] text-[#092D3A] rounded"
             onClick={handleFileUpload}
           >
             Audios
@@ -51,7 +51,7 @@ const Sidebar = () => {
         {/* Tombol Pictures */}
         <div className="flex justify-center items-center p-2">
           <button
-            className="px-4 py-2 bg-[#3054d9] text-white rounded"
+            className="px-4 py-2 bg-[#BABEB8] text-[#092D3A] rounded"
             onClick={handleFileUpload}
           >
             Pictures
@@ -61,7 +61,7 @@ const Sidebar = () => {
         {/* Tombol Mapper */}
         <div className="flex justify-center items-center p-2">
           <button
-            className="px-4 py-2 bg-[#3054d9] text-white rounded"
+            className="px-4 py-2 bg-[#BABEB8] text-[#092D3A] rounded"
             onClick={handleFileUpload}
           >
             Mapper
