@@ -12,7 +12,7 @@ def read_midi_file(file_path: str) -> List[Tuple[int, int]]:
 
     for track in midi.tracks:
         for msg in track:
-            if msg.type == 'note_on' and msg.channel == 0 : 
+            if msg.type == 'note_on': 
                 notes.append((msg.note, msg.time)) 
 
     if not notes:
