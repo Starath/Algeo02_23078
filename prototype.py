@@ -4,6 +4,15 @@ import numpy as np
 from ExtractFitur import extract_features
 from Process import process_midi_file
 
+
+def vectorize_features(features : dict[str,list]) -> np.ndarray :
+    combined_feature_vector = np.concatenate([
+        np.mean(features["ATB"], axis=0),
+        np.mean(features["RTB"], axis=0),
+        np.mean(features["FTB"], axis=0)
+    ])
+    return combined_feature_vector
+
 def build_feature_database(midi_folder: str, output_file: str, window_size: int = 20, slide: int = 4):
     """
     Constructs a feature database from MIDI files in the given folder and saves it as a JSON file.
@@ -34,11 +43,7 @@ def build_feature_database(midi_folder: str, output_file: str, window_size: int 
             features = extract_features(normalized_windows)
 
             # Combine the feature vectors (mean of ATB, RTB, FTB)
-            combined_feature_vector = np.concatenate([
-                np.mean(features["ATB"], axis=0),
-                np.mean(features["RTB"], axis=0),
-                np.mean(features["FTB"], axis=0)
-            ]).tolist()  # Convert to list for JSON compatibility
+            combined_feature_vector = vectorize_features(features).tolist()
 
             # Add to database
             feature_database[midi_file] = combined_feature_vector
@@ -48,9 +53,11 @@ def build_feature_database(midi_folder: str, output_file: str, window_size: int 
         json.dump(feature_database, outfile, indent=4)
 
     print(f"Feature database saved to {output_file}")
+    
 
 # Example usage
 if __name__ == "__main__":
     midi_folder = "C:\Coding\Algeo02_23078\AudioDataset"  # Replace with the path to your MIDI folder
     output_file = "midi_feature_database.json"  # File to store the database
     build_feature_database(midi_folder, output_file)
+    
