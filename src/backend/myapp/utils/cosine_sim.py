@@ -1,9 +1,10 @@
 import json
+import os
 import numpy as np
 from scipy.spatial.distance import cosine  # Import the cosine function from scipy
-from backend.myapp.utils.ExtractFitur import extract_features
-from backend.myapp.utils.Process import process_midi_file
-from backend.myapp.utils.prototype import vectorize_features
+from ExtractFitur import extract_features
+from Process import process_midi_file
+from prototype import vectorize_features
 
 def load_feature_database(database_path):
     """
@@ -52,8 +53,9 @@ def compare_query_to_database(query_file_path, database_path, window_size=20, sl
 
 # Example usage
 if __name__ == "__main__":
-    query_file_path = "x (24).mid"  # Replace with the path to the query MIDI file
-    database_path = "midi_feature_database.json"  # Path to the stored feature database
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Current script's directory
+    query_file_path = os.path.join(BASE_DIR, "x (24).mid")
+    database_path = os.path.join(BASE_DIR, "midi_feature_database.json")
 
     best_match_file, similarity_score = compare_query_to_database(query_file_path, database_path)
     

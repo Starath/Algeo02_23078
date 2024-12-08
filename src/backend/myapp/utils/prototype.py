@@ -1,8 +1,8 @@
 import os
 import json
 import numpy as np
-from backend.myapp.utils.ExtractFitur import extract_features
-from backend.myapp.utils.Process import process_midi_file
+from ExtractFitur import extract_features
+from Process import process_midi_file
 
 
 def vectorize_features(features : dict[str,list]) -> np.ndarray :
@@ -56,8 +56,11 @@ def build_feature_database(midi_folder: str, output_file: str, window_size: int 
     
 
 # Example usage
+# Example usage
 if __name__ == "__main__":
-    midi_folder = "C:\Coding\Algeo02_23078\AudioDataset"  # Replace with the path to your MIDI folder
-    output_file = "midi_feature_database.json"  # File to store the database
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Current script's directory
+    output_file = os.path.join(BASE_DIR, "midi_feature_database.json")
+    midi_folder = r"C:\Coding\Algeo02_23078\src\backend\dataset\AudioDataset"  # Use raw string
     build_feature_database(midi_folder, output_file)
+
     

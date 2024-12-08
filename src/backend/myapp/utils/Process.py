@@ -1,7 +1,7 @@
 import mido
 import numpy as np
 from typing import List, Tuple
-from backend.myapp.utils.ExtractFitur import extract_features
+from ExtractFitur import extract_features
 
 def read_midi_file(file_path: str) -> List[Tuple[int, int]]:
     """
