@@ -1,8 +1,8 @@
 import os
 import json
 import numpy as np
-from ExtractFitur import extract_features
-from Process import process_midi_file
+from backend.myapp.utils.ExtractFitur import extract_features
+from backend.myapp.utils.Process import process_midi_file
 
 
 def vectorize_features(features : dict[str,list]) -> np.ndarray :

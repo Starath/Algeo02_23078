@@ -1,9 +1,9 @@
 import json
 import numpy as np
 from scipy.spatial.distance import cosine  # Import the cosine function from scipy
-from ExtractFitur import extract_features
-from Process import process_midi_file
-from prototype import vectorize_features
+from backend.myapp.utils.ExtractFitur import extract_features
+from backend.myapp.utils.Process import process_midi_file
+from backend.myapp.utils.prototype import vectorize_features
 
 def load_feature_database(database_path):
     """
