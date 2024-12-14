@@ -1,70 +1,57 @@
 import React, { useRef } from 'react';
 
 const Sidebar = () => {
-  const fileInputRef = useRef(null); // Referensi untuk elemen input file
+  const fileInputRef = useRef(null);
 
-  const handleFileUpload = () => {
-    // Membuka dialog unggah file
-    fileInputRef.current.click();
-  };
-
-  const handleFileChange = (event) => {
+  const handleFileChange = async (event) => {
     const file = event.target.files[0];
-    if (file) {
-      alert(`File diunggah: ${file.name}`); // Ganti dengan logika upload sesuai kebutuhan
+    if (!file) {
+      alert("Pilih file terlebih dahulu!");
+      return;
+    }
+
+    // Kirim file ke backend
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/upload/", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (data.status === "success") {
+        console.log("Hasil:", data.data);
+        alert(JSON.stringify(data.data, null, 2)); // Tampilkan hasil
+      } else {
+        alert(`Error: ${data.message}`);
+      }
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      alert("Terjadi kesalahan saat mengunggah file.");
     }
   };
 
-  return (
-    <div className='w-[25%] h-[100%] p-2 flex-col gap-2 text-white lg-flex'>
-      <div className='bg-[#092D3A] h-[100%] rounded flex flex-col justify-around'>
-        <div className='bg-white h-[45%] flex justify-center items-center rounded m-5'></div>
+  const handleFileUpload = () => {
+    fileInputRef.current.click();
+  };
 
-        {/* Input file (disembunyikan) */}
+  return (
+    <div className="w-[25%] h-[100%] p-2 flex-col gap-2 text-white lg-flex">
+      <div className="bg-[#092D3A] h-[100%] rounded flex flex-col justify-around">
         <input
           type="file"
           ref={fileInputRef}
           style={{ display: 'none' }}
           onChange={handleFileChange}
         />
-
-        {/* Tombol Upload */}
         <div className="flex justify-center items-center p-8">
           <button
             className="px-4 py-2 bg-[#BABEB8] text-[#092D3A] rounded"
             onClick={handleFileUpload}
           >
-            Upload
-          </button>
-        </div>
-
-        {/* Tombol Audios */}
-        <div className="flex justify-center items-center p-2">
-          <button
-            className="px-4 py-2 bg-[#BABEB8] text-[#092D3A] rounded"
-            onClick={handleFileUpload}
-          >
-            Audios
-          </button>
-        </div>
-
-        {/* Tombol Pictures */}
-        <div className="flex justify-center items-center p-2">
-          <button
-            className="px-4 py-2 bg-[#BABEB8] text-[#092D3A] rounded"
-            onClick={handleFileUpload}
-          >
-            Pictures
-          </button>
-        </div>
-
-        {/* Tombol Mapper */}
-        <div className="flex justify-center items-center p-2">
-          <button
-            className="px-4 py-2 bg-[#BABEB8] text-[#092D3A] rounded"
-            onClick={handleFileUpload}
-          >
-            Mapper
+            Upload Pictures
           </button>
         </div>
       </div>

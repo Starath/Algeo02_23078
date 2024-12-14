@@ -15,10 +15,10 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path,re_path  # Use path (and optionally re_path) for all URLs
-from myapp.views import ReactView  # Import your view
+from django.urls import path
+from myapp.views import upload_file
 
 urlpatterns = [
-    path('admin/', admin.site.urls),  # Admin route
-    path('', ReactView.as_view(), name="anything"),  # Your main API route
+    path('', upload_file, name='home'),  # Root URL diarahkan ke fungsi `upload_file`
+    path('upload/', upload_file, name='upload_file'),
 ]

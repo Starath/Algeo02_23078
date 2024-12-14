@@ -1,45 +1,38 @@
-from django.shortcuts import render
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.core.files.storage import default_storage
+import os
+from pathlib import Path
+from albumFinder import process_uploaded_image
 
-# Create your views here.
-from django.shortcuts import render
-from rest_framework.views import APIView
-from .models import *
-from .serializer import *
-from rest_framework.response import Response
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATASET_PATH = BASE_DIR / "dataSet" / "dataGambar"  # Folder dataset
 
+@csrf_exempt
+def upload_file(request):
+    if request.method == 'POST' and request.FILES.get('file'):
+        uploaded_file = request.FILES['file']
+        temp_file_path = default_storage.save(f"temp/{uploaded_file.name}", uploaded_file)
 
-class ReactView(APIView):
-    def get(self, request):
-        output_list = [{"employee": item.employee,
-                   "department": item.department}
-                   for item in React.objects.all()]
-        
-        # print(output_list)
-        return Response(output_list)
-    
-    def post(self, request):
-        serializer = ReactSerializer(data=request.data)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
-            return Response(serializer.data)
-        
-    # def put(self, request, pk):
-    #     try:
-    #         react = React.objects.get(pk=pk)
-    #     except React.DoesNotExist:
-    #         return Response({"error": "Record not found"}, status=status.HTTP_404_NOT_FOUND)
-        
-    #     serializer = ReactSerializer(react, data=request.data)
-    #     if serializer.is_valid(raise_exception=True):
-    #         serializer.save()
-    #         return Response(serializer.data, status=status.HTTP_200_OK)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # Path absolut ke file sementara
+        temp_file_abs_path = os.path.join(BASE_DIR, "media", temp_file_path)
 
-    # # DELETE: Delete a record
-    # def delete(self, request, pk):
-    #     try:
-    #         react = React.objects.get(pk=pk)
-    #         react.delete()
-    #         return Response({"message": "Record deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
-    #     except React.DoesNotExist:
-    #         return Response({"error": "Record not found"}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            # Proses gambar yang diunggah menggunakan albumFinder.py
+            sorted_distances = process_uploaded_image(temp_file_abs_path, DATASET_PATH)
+        except Exception as e:
+            return JsonResponse({"status": "failed", "message": str(e)})
+
+        # Hapus file sementara setelah diproses
+        os.remove(temp_file_abs_path)
+
+        # Kirim hasil ke frontend
+        return JsonResponse({
+            "status": "success",
+            "data": [
+                {"index": index, "distance": round(distance, 4)}
+                for index, distance in sorted_distances
+            ],
+        })
+
+    return JsonResponse({"status": "failed", "message": "Invalid request"})

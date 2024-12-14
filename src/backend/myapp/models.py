@@ -1,7 +1,5 @@
 from django.db import models
 
-# Create your models here.
-class React(models.Model):
-    employee = models.CharField(max_length=30)
-    department = models.CharField(max_length=200)
-
+class SampleModel(models.Model):
+    name = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)

@@ -3,6 +3,11 @@ import numpy as np
 from PIL import Image
 
 
+BASE_DIR = Path(__file__).resolve().parent  # Path root 'backend'
+datasetPath = BASE_DIR / "dataSet" / "dataGambar"
+# queryPath = datasetPath / "query.jpg"
+
+
 def preProcessing(input_path):
     img = Image.open(input_path)
     imgArray = np.array(img)
@@ -123,8 +128,9 @@ def euclidieanDistance(queryProjection, datasetProjection):
 
 
 #########################################################################################
-datasetPath = Path("src/backend/dataset/dataGambar")
+# datasetPath = Path("dataset/dataGambar")
 # menyimpan hasil gambar yang telah diproses
+file_list = sorted(datasetPath.glob("*"))
 processedImg = []
 
 # membaca semua file gambar dalam folder
@@ -141,24 +147,53 @@ for imgPath in datasetPath.glob("*"):
         # tambahkan gambar yang telah diproses ke list
         processedImg.append(standardImg)
         
-meanValue = np.mean(processedImg, axis=0)
-U = svdDecompotition(processedImg)
-#hasil dari dataset
-datasetProjection = projectionPCADataset(processedImg, U, 10)
+# meanValue = np.mean(processedImg, axis=0)
+# U = svdDecompotition(processedImg)
+# #hasil dari dataset
+# datasetProjection = projectionPCADataset(processedImg, U, 10)
 
-#hasil dari query
-queryPath = Path('src/backend/dataset/dataGambar/query.jpg')
-queryProjection = projectionPCAQuery(queryPath, U, 10, meanValue)
+# #hasil dari query
+# # queryPath = Path('src/backend/dataset/dataGambar/query.jpg')
+# queryProjection = projectionPCAQuery(queryPath, U, 10, meanValue)
 
-#menghitung jarak euclidiean
-sorted_distances = euclidieanDistance(queryProjection, datasetProjection)
+# #menghitung jarak euclidiean
+# sorted_distances = euclidieanDistance(queryProjection, datasetProjection)
 
-########################################################################
-# cetak hasil (masih debugging)
-print("Hasil jarak dan urutan berdasarkan jarak terkecil:")
-for index, distance in sorted_distances:
-    print(f"Gambar ke-{index} memiliki jarak {distance:.4f}")
+# ########################################################################
+# # cetak hasil (masih debugging)
+# print("Hasil jarak dan urutan berdasarkan jarak terkecil:")
+# for index, distance in sorted_distances:
+#     print(f"Gambar ke-{index} memiliki jarak {distance:.4f}")
 
+def process_uploaded_image(file_path, dataset_path):
+    """
+    Memproses gambar yang diunggah dan menghitung jarak dengan dataset.
+    Args:
+        file_path (str): Path ke file query.
+        dataset_path (str): Path ke folder dataset.
 
+    Returns:
+        list: Jarak Euclidean yang diurutkan.
+    """
+    datasetPath = Path(dataset_path)
+    processedImg = []
 
+    # Memproses semua file dalam dataset
+    for imgPath in datasetPath.glob("*"):
+        if imgPath.suffix.lower() in ['.png', '.jpg', '.jpeg', '.bmp']:
+            grayscaleImg = preProcessing(imgPath)
+            flattenImg = flattenImg1D(grayscaleImg)
+            standardImg = standardizeImg(flattenImg)
+            processedImg.append(standardImg)
 
+    meanValue = np.mean(processedImg, axis=0)
+    U = svdDecompotition(processedImg)
+    datasetProjection = projectionPCADataset(processedImg, U, 10)
+
+    # Memproses file query
+    queryProjection = projectionPCAQuery(file_path, U, 10, meanValue)
+
+    # Hitung jarak Euclidean
+    sorted_distances = euclidieanDistance(queryProjection, datasetProjection)
+
+    return sorted_distances
