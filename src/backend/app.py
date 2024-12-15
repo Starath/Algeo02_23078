@@ -1,3 +1,4 @@
+import json
 from flask import Flask, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 from flask_cors import CORS, cross_origin
@@ -16,6 +17,7 @@ BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_FOLDER = BASE_DIR / "uploads"
 DATASET_FOLDER = BASE_DIR / "dataset" / "dataGambar"
 AUDIO_FOLDER = BASE_DIR / "dataset" / "dataAudio"
+MAPPER_FOLDER = BASE_DIR / "dataset" / "dataMapper"
 MIDI_DATABASE_FILE = "midi_feature_database.json"
 THRESHOLD = 0.55  # Threshold similarity untuk file MIDI
 
@@ -68,12 +70,40 @@ def upload_midi():
     file.save(file_path)
 
     try:
-        # Proses file MIDI menggunakan MusicFinder.py
+        # Step 1: Proses file MIDI menggunakan MusicFinder.py
         results = compare_query_to_database(str(file_path), MIDI_DATABASE_FILE, threshold=THRESHOLD)
-        return jsonify({'status': 'success', 'results': results})
+        
+        # Step 2: Load the mapper JSON
+        mapper_path = MAPPER_FOLDER / "mapper.json"
+        if not mapper_path.exists():
+            return jsonify({'status': 'failed', 'message': 'Mapper file not found'}), 404
+        
+        with open(mapper_path, 'r') as f:
+            mapper = json.load(f)
+
+        # Step 3: Map the query results to pictures
+        matched_results = []
+        for result in results:  # Assuming results contain 'filename' of matched audio
+            matched_audio = result.get('filename')
+            for entry in mapper:
+                if entry['audio_file'] == matched_audio:
+                    matched_results.append({
+                        'filename': entry["pic_name"],
+                        'distance': result.get('similarity'),
+                        'imagePath': f"http://127.0.0.1:5000/dataset-image/{entry["pic_name"]}"
+                    })
+
+        # Step 4: Return the matched results
+        return jsonify({
+            'status': 'success',
+            'results': matched_results if matched_results else 'No picture matches found'
+        })
 
     except Exception as e:
         return jsonify({'status': 'failed', 'message': str(e)}), 500
+    finally:
+        # Clean up the uploaded file
+        file_path.unlink(missing_ok=True)
 
 @app.route('/upload-zip/<category>', methods=['POST'])
 def upload_zip(category):
@@ -92,8 +122,8 @@ def upload_zip(category):
         target_folder = BASE_DIR / "dataset" / "dataAudio"
         allowed_extensions = {'.midi', '.mid'}
     elif category == "mapper":
-        target_folder = BASE_DIR / "dataset" / "dataMapper"
-        allowed_extensions = None  # Allow all for mapper
+        target_folder = MAPPER_FOLDER
+        allowed_extensions = {'.json', '.txt'}  # Allow all for mapper
     else:
         return jsonify({'status': 'failed', 'message': 'Invalid category'}), 400
 
