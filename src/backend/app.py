@@ -43,15 +43,31 @@ def upload_picture():
     try:
         # Proses file menggunakan albumFinder.py
         result, valid_files = process_uploaded_image(str(file_path), str(DATASET_FOLDER))
-        sorted_result = [
-            {
-                'filename': valid_files[idx].name,
+        # Baca file mapper.json
+        mapper_path = MAPPER_FOLDER / "mapper.json"
+        if not mapper_path.exists():
+            return jsonify({'status': 'failed', 'message': 'Mapper file not found'}), 404
+        
+        with open(mapper_path, 'r') as f:
+            mapper = json.load(f)
+
+        # Cocokkan gambar dengan nama audio dari mapper.json
+        mapped_results = []
+        for idx, distance in result:
+            image_name = valid_files[idx].name
+            audio_name = None
+            for entry in mapper:
+                if entry['pic_name'] == image_name:
+                    audio_name = entry['audio_file']
+                    break
+            
+            mapped_results.append({
+                'filename': audio_name if audio_name else image_name,  # Gunakan nama audio jika ada
                 'distance': distance,
-                'imagePath': f"http://127.0.0.1:5000/dataset-image/{valid_files[idx].name}"
-            }
-            for idx, distance in result
-        ]
-        return jsonify({'status': 'success', 'data': sorted_result})
+                'imagePath': f"http://127.0.0.1:5000/dataset-image/{image_name}"
+            })
+
+        return jsonify({'status': 'success', 'data': mapped_results})
 
     except Exception as e:
         return jsonify({'status': 'failed', 'message': str(e)}), 500
@@ -87,9 +103,10 @@ def upload_midi():
             matched_audio = result.get('filename')
             for entry in mapper:
                 if entry['audio_file'] == matched_audio:
+                    distance = float(result.get('similarity'))*100
                     matched_results.append({
-                        'filename': entry["pic_name"],
-                        'distance': result.get('similarity'),
+                        'filename': entry["audio_file"],
+                        'distance': distance,
                         'imagePath': f"http://127.0.0.1:5000/dataset-image/{entry["pic_name"]}"
                     })
 
@@ -148,22 +165,11 @@ def upload_zip(category):
         # Hapus file ZIP setelah selesai
         zip_path.unlink()
 
-        # Buat daftar gambar valid setelah ekstraksi
-        valid_files = [file for file in target_folder.glob("*") if file.suffix.lower() in allowed_extensions]
-        dataset_result = [
-            {
-                'filename': img.name,
-                'imagePath': f"http://127.0.0.1:5000/dataset-image/{img.name}",
-                'distance': None  # Belum ada jarak, hanya menampilkan gambar
-            }
-            for img in valid_files
-        ]
-
         return jsonify({
             'status': 'success',
-            'message': f'{category.capitalize()} zip uploaded and extracted successfully',
-            'data': dataset_result
+            'message': f'{category.capitalize()} zip uploaded and extracted successfully'
         })
+
 
         # return jsonify({'status': 'success', 'message': f'{category.capitalize()} zip uploaded and extracted successfully'})
 
@@ -191,6 +197,42 @@ def dataset_image(filename):
         error_message = f"File {filename} not found at {file_path}"
         print(error_message)  # Debugging
         return jsonify({"error": error_message}), 404
+
+@app.route('/get-dataset-mapped', methods=['GET'])
+def get_dataset_mapped():
+    # Pastikan ketiga dataset sudah ada
+    if not DATASET_FOLDER.exists() or not AUDIO_FOLDER.exists() or not MAPPER_FOLDER.exists():
+        return jsonify({'status': 'failed', 'message': 'All datasets are not uploaded yet'}), 400
+
+    try:
+        # 1. Baca file mapper.json
+        mapper_file = MAPPER_FOLDER / "mapper.json"
+        if not mapper_file.exists():
+            return jsonify({'status': 'failed', 'message': 'Mapper file not found'}), 404
+
+        with open(mapper_file, 'r') as f:
+            mapper = json.load(f)
+
+        # 2. Buat daftar gambar sesuai mapper
+        matched_data = []
+        for entry in mapper:
+            audio_file_name = entry['audio_file']
+            picture_file = DATASET_FOLDER / entry['pic_name']
+            if picture_file.exists():
+                matched_data.append({
+                    'filename': entry['audio_file'],
+                    'imagePath': f"http://127.0.0.1:5000/dataset-image/{entry['pic_name']}",
+                    'distance': None  # Belum ada perhitungan jarak, hanya menampilkan gambar
+                })
+
+        if not matched_data:
+            return jsonify({'status': 'failed', 'message': 'No matching pictures found in the dataset'}), 404
+
+        # 3. Return data yang sudah diproses
+        return jsonify({'status': 'success', 'data': matched_data})
+
+    except Exception as e:
+        return jsonify({'status': 'failed', 'message': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

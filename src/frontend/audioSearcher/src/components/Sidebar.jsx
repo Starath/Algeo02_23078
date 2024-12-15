@@ -1,9 +1,9 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 
 const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
   const fileInputRef = useRef(null);
   const [fileName, setFileName] = useState(""); // Untuk file biasa (gambar)
-  const [datasetFileNames, setDatasetFileNames] = useState([]); // Untuk zip dataset
+  //const [datasetFileNames, setDatasetFileNames] = useState([]); // Untuk zip dataset
 
   const [uploadedZipFiles, setUploadedZipFiles] = useState({
     audio: "",
@@ -63,7 +63,7 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
             setResults(data.data); // Hasil dari albumFinder (PCA)
             setFileName(file.name); // Set nama file gambar
           } else if (uploadType === "zip") {
-            setResults(data.data); 
+            //setResults(data.data); 
             setUploadedZipFiles((prev) => ({
               ...prev,
               [category]: file.name, // Tambahkan file ZIP ke kategori
@@ -80,6 +80,28 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
     }
   };
 
+  const fetchMappedDataset = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:5000/get-dataset-mapped');
+      const data = await response.json();
+      if (response.ok) {
+        setResults(data.data); // Perbarui SongGrid dengan hasil mapper
+      } else {
+        alert(`Failed to load dataset: ${data.message}`);
+      }
+    } catch (error) {
+      console.error("Error fetching mapped dataset:", error);
+      alert("Failed to fetch dataset.");
+    }
+  };
+  
+  useEffect(() => {
+    // Jika ketiga ZIP sudah diunggah, panggil fetchMappedDataset sekali
+    if (uploadedZipFiles.audio && uploadedZipFiles.pictures && uploadedZipFiles.mapper) {
+      fetchMappedDataset();
+    }
+  }, [uploadedZipFiles]); // Jalankan ketika uploadedZipFiles berubah  
+  
   return (
     <div className="w-[25%] h-[100%] p-2 flex-col gap-2 text-white lg-flex">
       <div className="bg-[#092D3A] h-[100%] rounded flex flex-col justify-around">
