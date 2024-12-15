@@ -83,14 +83,14 @@ def upload_zip(category):
 
     file = request.files['file']
     if file.filename == '' or not file.filename.endswith('.zip'):
-        return jsonify({'status': 'failed', 'message': 'Invalid file or not a zip file'}), 400
+        return jsonify({'status': 'failed', 'message': 'Invalid ZIP file'}), 400
 
     # Tentukan folder tujuan berdasarkan kategori
     if category == "pictures":
         target_folder = DATASET_FOLDER
         allowed_extensions = {'.jpg', '.jpeg', '.png', '.bmp'}
     elif category == "audio":
-        target_folder = BASE_DIR / "dataset" / "dataAudio"
+        target_folder = AUDIO_FOLDER
         allowed_extensions = {'.midi', '.mid'}
     elif category == "mapper":
         target_folder = BASE_DIR / "dataset" / "dataMapper"
@@ -119,24 +119,32 @@ def upload_zip(category):
         # Hapus file ZIP setelah selesai
         zip_path.unlink()
 
-        # Buat daftar gambar valid setelah ekstraksi
+        # Buat daftar file valid setelah ekstraksi
         valid_files = [file for file in target_folder.glob("*") if file.suffix.lower() in allowed_extensions]
+        
+        # Proses khusus untuk kategori audio: build feature database
+        if category == "audio":
+            from DatabaseProcess import build_feature_database  # Import fungsi di sini agar modular
+            build_feature_database(str(target_folder), str(MIDI_DATABASE_FILE))
+            message = "Audio ZIP extracted and feature database updated successfully"
+        else:
+            message = f"{category.capitalize()} ZIP extracted successfully"
+
+        # Respons untuk ZIP yang diproses
         dataset_result = [
             {
-                'filename': img.name,
-                'imagePath': f"http://127.0.0.1:5000/dataset-image/{img.name}",
-                'distance': None  # Belum ada jarak, hanya menampilkan gambar
+                'filename': file.name,
+                'imagePath': f"http://127.0.0.1:5000/dataset-image/{file.name}" if category == "pictures" else None,
+                'distance': None  # Hanya untuk gambar
             }
-            for img in valid_files
+            for file in valid_files
         ]
 
         return jsonify({
             'status': 'success',
-            'message': f'{category.capitalize()} zip uploaded and extracted successfully',
+            'message': message,
             'data': dataset_result
         })
-
-        # return jsonify({'status': 'success', 'message': f'{category.capitalize()} zip uploaded and extracted successfully'})
 
     except Exception as e:
         return jsonify({'status': 'failed', 'message': str(e)}), 500
