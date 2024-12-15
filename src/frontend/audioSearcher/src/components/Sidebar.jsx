@@ -34,11 +34,36 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
         if (response.ok) {
           alert("File uploaded successfully!");
           console.log("Upload result:", data);
+          if (uploadType === "zip") {
+            const formData = new FormData();
+            formData.append("file", file);
 
-          // Hanya jika gambar biasa
-          if (uploadType !== "zip") {
+            try {
+                const response = await fetch(`http://127.0.0.1:5000/upload-zip/${category}`, {
+                    method: "POST",
+                    body: formData,
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    alert("ZIP file uploaded successfully!");
+                    console.log("ZIP upload result:", data);
+
+                    // Update hasil dataset di SongGrid
+                    if (data.data) {
+                        setResults(data.data); // Tampilkan semua gambar dari dataset
+                    }
+                } else {
+                    alert(`Failed to upload ZIP file: ${data.message}`);
+                }
+            } catch (error) {
+                console.error("Error uploading ZIP file:", error);
+                alert(`Failed to upload ZIP file: ${error.message}`);
+            }
+          } else {
+            // Jika gambar biasa
             setUploadedImage(URL.createObjectURL(file)); // Preview gambar
-            setResults(data.data); // Update hasil ke SongGrid
+            setResults(data.data); // Perbarui hasil di SongGrid
           }
         } else {
           alert(`Failed to upload file: ${data.message}`);

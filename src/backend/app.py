@@ -22,6 +22,25 @@ Path(UPLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
 def home():
     return jsonify({'message': 'Welcome to the Flask API!', 'routes': ['/upload-picture']})
 
+# @app.route('/list-dataset', methods=['GET'])
+# def list_dataset():
+#     """
+#     Mengembalikan daftar file dalam DATASET_FOLDER setelah ZIP diunggah.
+#     """
+#     try:
+#         files = sorted(DATASET_FOLDER.glob("*.[jp][pn]g"))  # Ambil file JPG, JPEG, PNG
+#         file_list = [
+#             {
+#                 'filename': file.name,
+#                 'distance': None,  # Default None, jarak belum dihitung
+#                 'imagePath': f"http://127.0.0.1:5000/dataset-image/{file.name}"
+#             }
+#             for file in files
+#         ]
+#         return jsonify({'status': 'success', 'data': file_list})
+#     except Exception as e:
+#         return jsonify({'status': 'failed', 'message': str(e)}), 500
+
 @app.route('/upload-picture', methods=['POST'])
 def upload_picture():
     if 'file' not in request.files:
@@ -124,7 +143,24 @@ def upload_zip(category):
         # Hapus file ZIP setelah selesai
         zip_path.unlink()
 
-        return jsonify({'status': 'success', 'message': f'{category.capitalize()} zip uploaded and extracted successfully'})
+        # Buat daftar gambar valid setelah ekstraksi
+        valid_files = [file for file in target_folder.glob("*") if file.suffix.lower() in allowed_extensions]
+        dataset_result = [
+            {
+                'filename': img.name,
+                'imagePath': f"http://127.0.0.1:5000/dataset-image/{img.name}",
+                'distance': None  # Belum ada jarak, hanya menampilkan gambar
+            }
+            for img in valid_files
+        ]
+
+        return jsonify({
+            'status': 'success',
+            'message': f'{category.capitalize()} zip uploaded and extracted successfully',
+            'data': dataset_result
+        })
+
+        # return jsonify({'status': 'success', 'message': f'{category.capitalize()} zip uploaded and extracted successfully'})
 
     except Exception as e:
         return jsonify({'status': 'failed', 'message': str(e)}), 500
