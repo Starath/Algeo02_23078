@@ -1,7 +1,7 @@
 import React from 'react'
 import Navbar from './Navbar'
 import SongGrid from './SongGrid'
-import Sidebar from './SideBar'
+import Sidebar from './Sidebar'
 
 const DisplayHome = () => {
   return (
