@@ -3,6 +3,7 @@ from werkzeug.utils import secure_filename
 from flask_cors import CORS
 from albumFinder import process_uploaded_image
 from MusicFinder import compare_query_to_database
+from DatabaseProcess import build_feature_database  # Import fungsi untuk membangun database fitur
 from pathlib import Path
 import mimetypes
 import shutil
@@ -16,7 +17,7 @@ BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_FOLDER = BASE_DIR / "uploads"
 DATASET_FOLDER = BASE_DIR / "dataset" / "dataGambar"
 AUDIO_FOLDER = BASE_DIR / "dataset" / "dataAudio"
-MIDI_DATABASE_FILE = "midi_feature_database.json"
+MIDI_DATABASE_FILE = BASE_DIR / "midi_feature_database.json"
 THRESHOLD = 0.55  # Threshold similarity untuk file MIDI
 
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
@@ -69,7 +70,7 @@ def upload_midi():
 
     try:
         # Proses file MIDI menggunakan MusicFinder.py
-        results = compare_query_to_database(str(file_path), MIDI_DATABASE_FILE, threshold=THRESHOLD)
+        results = compare_query_to_database(str(file_path), str(MIDI_DATABASE_FILE), threshold=THRESHOLD)
         return jsonify({'status': 'success', 'results': results})
 
     except Exception as e:
@@ -103,10 +104,17 @@ def upload_zip(category):
 
         zip_path.unlink()  # Hapus file ZIP
 
+        # Jika kategori audio, proses dataset menjadi database fitur
+        if category == "audio":
+            build_feature_database(str(target_folder), str(MIDI_DATABASE_FILE))
+            message = "Audio ZIP extracted and feature database updated successfully"
+        else:
+            message = f"{category.capitalize()} ZIP extracted successfully"
+
         extracted_files = [f.name for f in target_folder.iterdir()]
         return jsonify({
             'status': 'success',
-            'message': f'{category.capitalize()} ZIP extracted successfully',
+            'message': message,
             'data': extracted_files
         })
 
