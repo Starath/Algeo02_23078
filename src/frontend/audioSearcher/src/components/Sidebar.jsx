@@ -4,7 +4,9 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
   const fileInputRef = useRef(null);
 
   const handleFileUpload = (type, category = "") => {
-    fileInputRef.current.accept = type === "zip" ? ".zip" : "image/*";
+    // Set accept file sesuai jenis file (image atau ZIP/MIDI)
+    fileInputRef.current.accept =
+      type === "zip" ? ".zip" : "image/*, .mid"; // Mendukung gambar & MIDI
     fileInputRef.current.dataset.type = type; // Tandai tipe file (image/zip)
     fileInputRef.current.dataset.category = category; // Tandai kategori untuk ZIP
     fileInputRef.current.click();
@@ -12,19 +14,29 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
 
   const handleFileChange = async (event) => {
     const file = event.target.files[0];
-    const uploadType = fileInputRef.current.dataset.type; // 'image' atau 'zip'
+    const uploadType = fileInputRef.current.dataset.type; // 'image', 'zip'
     const category = fileInputRef.current.dataset.category; // 'pictures', 'audio', 'mapper'
 
     if (file) {
       const formData = new FormData();
       formData.append("file", file);
 
-      try {
-        const url =
-          uploadType === "zip"
-            ? `http://127.0.0.1:5000/upload-zip/${category}` // Endpoint untuk ZIP
-            : `http://127.0.0.1:5000/upload-picture`; // Endpoint untuk gambar biasa
+      // Tentukan endpoint berdasarkan jenis file
+      const fileExtension = file.name.split('.').pop().toLowerCase();
+      let url = "";
 
+      if (fileExtension === "mid") {
+        url = "http://127.0.0.1:5000/upload-midi"; // Endpoint MIDI
+      } else if (["jpg", "jpeg", "png", "bmp"].includes(fileExtension)) {
+        url = "http://127.0.0.1:5000/upload-picture"; // Endpoint gambar
+      } else if (uploadType === "zip") {
+        url = `http://127.0.0.1:5000/upload-zip/${category}`; // Endpoint ZIP
+      } else {
+        alert("Unsupported file type. Please upload an image, MIDI, or ZIP file.");
+        return;
+      }
+
+      try {
         const response = await fetch(url, {
           method: "POST",
           body: formData,
@@ -33,37 +45,15 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
         const data = await response.json();
         if (response.ok) {
           alert("File uploaded successfully!");
-          console.log("Upload result:", data);
-          if (uploadType === "zip") {
-            const formData = new FormData();
-            formData.append("file", file);
 
-            try {
-                const response = await fetch(`http://127.0.0.1:5000/upload-zip/${category}`, {
-                    method: "POST",
-                    body: formData,
-                });
-
-                const data = await response.json();
-                if (response.ok) {
-                    alert("ZIP file uploaded successfully!");
-                    console.log("ZIP upload result:", data);
-
-                    // Update hasil dataset di SongGrid
-                    if (data.data) {
-                        setResults(data.data); // Tampilkan semua gambar dari dataset
-                    }
-                } else {
-                    alert(`Failed to upload ZIP file: ${data.message}`);
-                }
-            } catch (error) {
-                console.error("Error uploading ZIP file:", error);
-                alert(`Failed to upload ZIP file: ${error.message}`);
-            }
-          } else {
-            // Jika gambar biasa
+          // Update hasil berdasarkan jenis file
+          if (fileExtension === "mid") {
+            setResults(data.results); // Hasil dari MusicFinder (MIDI)
+          } else if (["jpg", "jpeg", "png", "bmp"].includes(fileExtension)) {
             setUploadedImage(URL.createObjectURL(file)); // Preview gambar
-            setResults(data.data); // Perbarui hasil di SongGrid
+            setResults(data.data); // Hasil dari albumFinder (PCA)
+          } else if (uploadType === "zip") {
+            setResults(data.data); // Hasil ZIP
           }
         } else {
           alert(`Failed to upload file: ${data.message}`);
@@ -76,11 +66,11 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
   };
 
   return (
-    <div className='w-[25%] h-[100%] p-2 flex-col gap-2 text-white lg-flex'>
-      <div className='bg-[#092D3A] h-[100%] rounded flex flex-col justify-around'>
+    <div className="w-[25%] h-[100%] p-2 flex-col gap-2 text-white lg-flex">
+      <div className="bg-[#092D3A] h-[100%] rounded flex flex-col justify-around">
         
         {/* Kotak Putih untuk Image Preview */}
-        <div className='bg-white h-[45%] flex justify-center items-center rounded m-5'>
+        <div className="bg-white h-[45%] flex justify-center items-center rounded m-5">
           {uploadedImage ? (
             <img
               src={uploadedImage}
@@ -101,7 +91,7 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
         />
 
         {/* Tombol Upload */}
-        <div className="flex justify-center items-center p-8">
+        <div className="flex justify-center items-center p-4">
           <button
             className="px-4 py-2 bg-[#BABEB8] text-[#092D3A] rounded"
             onClick={() => handleFileUpload("image")}
