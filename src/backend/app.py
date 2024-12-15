@@ -1,46 +1,31 @@
 from flask import Flask, request, jsonify, send_file
 from werkzeug.utils import secure_filename
-from flask_cors import CORS, cross_origin
+from flask_cors import CORS
 from albumFinder import process_uploaded_image
+from MusicFinder import compare_query_to_database
 from pathlib import Path
 import mimetypes
-import shutil  # Untuk menghapus folder
-from zipfile import ZipFile  # Untuk ekstraksi zip
+import shutil
+from zipfile import ZipFile
 
 app = Flask(__name__)
-CORS(app)  # Tambahkan ini untuk mengizinkan semua origin
+CORS(app)
+
+# Path Konfigurasi
 BASE_DIR = Path(__file__).resolve().parent
+UPLOAD_FOLDER = BASE_DIR / "uploads"
+DATASET_FOLDER = BASE_DIR / "dataset" / "dataGambar"
+AUDIO_FOLDER = BASE_DIR / "dataset" / "dataAudio"
+MIDI_DATABASE_FILE = "midi_feature_database.json"
+THRESHOLD = 0.55  # Threshold similarity untuk file MIDI
 
-# Folder untuk menyimpan file upload sementara
-DATASET_FOLDER = Path(__file__).resolve().parent / "dataset" / "dataGambar"
-UPLOAD_FOLDER = Path(__file__).resolve().parent / "uploads"
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-Path(UPLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
+UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 
 @app.route('/')
 def home():
-    return jsonify({'message': 'Welcome to the Flask API!', 'routes': ['/upload-picture']})
+    return jsonify({'message': 'Welcome to the Flask API!', 'routes': ['/upload-picture', '/upload-midi', '/upload-zip/<category>']})
 
-# @app.route('/list-dataset', methods=['GET'])
-# def list_dataset():
-#     """
-#     Mengembalikan daftar file dalam DATASET_FOLDER setelah ZIP diunggah.
-#     """
-#     try:
-#         files = sorted(DATASET_FOLDER.glob("*.[jp][pn]g"))  # Ambil file JPG, JPEG, PNG
-#         file_list = [
-#             {
-#                 'filename': file.name,
-#                 'distance': None,  # Default None, jarak belum dihitung
-#                 'imagePath': f"http://127.0.0.1:5000/dataset-image/{file.name}"
-#             }
-#             for file in files
-#         ]
-#         return jsonify({'status': 'success', 'data': file_list})
-#     except Exception as e:
-#         return jsonify({'status': 'failed', 'message': str(e)}), 500
-
+# Endpoint untuk upload file gambar
 @app.route('/upload-picture', methods=['POST'])
 def upload_picture():
     if 'file' not in request.files:
@@ -49,57 +34,48 @@ def upload_picture():
     file = request.files['file']
     if file.filename == '':
         return jsonify({'status': 'failed', 'message': 'No selected file'}), 400
-    
+
+    file_path = UPLOAD_FOLDER / secure_filename(file.filename)
+    file.save(file_path)
+
+    try:
+        # Proses file menggunakan albumFinder.py
+        result, valid_files = process_uploaded_image(str(file_path), str(DATASET_FOLDER))
+        sorted_result = [
+            {
+                'filename': valid_files[idx].name,
+                'distance': distance,
+                'imagePath': f"/dataset-image/{valid_files[idx].name}"
+            }
+            for idx, distance in result
+        ]
+        return jsonify({'status': 'success', 'data': sorted_result})
+
+    except Exception as e:
+        return jsonify({'status': 'failed', 'message': str(e)}), 500
+
+# Endpoint untuk upload file MIDI
+@app.route('/upload-midi', methods=['POST'])
+def upload_midi():
+    if 'file' not in request.files:
+        return jsonify({'status': 'failed', 'message': 'No file part'}), 400
+
     file = request.files['file']
-    if file.filename == '':
-        return jsonify({'status': 'failed', 'message': 'No selected file'}), 400
+    if not file.filename.endswith('.mid'):
+        return jsonify({'status': 'failed', 'message': 'Invalid MIDI file'}), 400
 
-    if file:
-        filename = secure_filename(file.filename)
-        file_path = UPLOAD_FOLDER / filename
-        file.save(file_path)  # Simpan file sementara
+    file_path = UPLOAD_FOLDER / secure_filename(file.filename)
+    file.save(file_path)
 
-        try:
-            # Proses file menggunakan albumFinder
-            result, valid_files = process_uploaded_image(str(file_path), str(DATASET_FOLDER))
-            sorted_result = [
-                {
-                    'filename': valid_files[idx].name,  # Pastikan index sesuai valid_files
-                    'distance': distance,
-                    'imagePath': f"http://127.0.0.1:5000/dataset-image/{valid_files[idx].name}"
-                }
-                for idx, distance in result
-            ]
+    try:
+        # Proses file MIDI menggunakan MusicFinder.py
+        results = compare_query_to_database(str(file_path), MIDI_DATABASE_FILE, threshold=THRESHOLD)
+        return jsonify({'status': 'success', 'results': results})
 
+    except Exception as e:
+        return jsonify({'status': 'failed', 'message': str(e)}), 500
 
-            return jsonify({'status': 'success', 'data': sorted_result})
-
-        except Exception as e:
-            return jsonify({'status': 'failed', 'message': str(e)}), 500
-
-@app.route('/dataset-image/<filename>')
-@cross_origin() 
-def dataset_image(filename):
-    file_path = DATASET_FOLDER / filename
-    print(f"Looking for file at: {file_path}")  # Tambahkan ini untuk debugging
-    if file_path.exists():
-        # Tentukan jenis MIME file (e.g., image/jpeg, image/png)
-        mime_type, _ = mimetypes.guess_type(str(file_path))
-        print(f"Detected MIME type: {mime_type}")  # Debugging MIME type
-
-        if mime_type:
-            # Kirim file dengan MIME type
-            return send_file(file_path, mimetype=mime_type)
-        else:
-            # Jika tidak bisa mendeteksi MIME type, kembalikan sebagai gambar default
-            return send_file(file_path)
-    else:
-        # Jika file tidak ditemukan
-        error_message = f"File {filename} not found at {file_path}"
-        print(error_message)  # Debugging
-        return jsonify({"error": error_message}), 404
-
-# Route untuk upload ZIP (pictures, audio, mapper)
+# Endpoint untuk upload ZIP file
 @app.route('/upload-zip/<category>', methods=['POST'])
 def upload_zip(category):
     if 'file' not in request.files:
@@ -107,63 +83,43 @@ def upload_zip(category):
 
     file = request.files['file']
     if file.filename == '' or not file.filename.endswith('.zip'):
-        return jsonify({'status': 'failed', 'message': 'Invalid file or not a zip file'}), 400
+        return jsonify({'status': 'failed', 'message': 'Invalid ZIP file'}), 400
 
-    # Tentukan folder tujuan berdasarkan kategori
-    if category == "pictures":
-        target_folder = DATASET_FOLDER
-        allowed_extensions = {'.jpg', '.jpeg', '.png', '.bmp'}
-    elif category == "audio":
-        target_folder = BASE_DIR / "dataset" / "dataAudio"
-        allowed_extensions = {'.midi', '.mid'}
-    elif category == "mapper":
-        target_folder = BASE_DIR / "dataset" / "dataMapper"
-        allowed_extensions = None  # Allow all for mapper
-    else:
+    if category not in ['pictures', 'audio', 'mapper']:
         return jsonify({'status': 'failed', 'message': 'Invalid category'}), 400
 
-    # Simpan file ZIP sementara
+    target_folder = BASE_DIR / "dataset" / f"data{category.capitalize()}"
     zip_path = UPLOAD_FOLDER / secure_filename(file.filename)
     file.save(zip_path)
 
     try:
-        # Hapus semua file lama di target folder
+        # Hapus isi folder lama dan ekstrak ZIP
         if target_folder.exists():
             shutil.rmtree(target_folder)
         target_folder.mkdir(parents=True, exist_ok=True)
 
-        # Ekstrak ZIP ke target folder
         with ZipFile(zip_path, 'r') as zip_ref:
-            for member in zip_ref.namelist():
-                if allowed_extensions:
-                    if not any(member.lower().endswith(ext) for ext in allowed_extensions):
-                        continue  # Skip file yang tidak sesuai
-                zip_ref.extract(member, target_folder)
+            zip_ref.extractall(target_folder)
 
-        # Hapus file ZIP setelah selesai
-        zip_path.unlink()
+        zip_path.unlink()  # Hapus file ZIP
 
-        # Buat daftar gambar valid setelah ekstraksi
-        valid_files = [file for file in target_folder.glob("*") if file.suffix.lower() in allowed_extensions]
-        dataset_result = [
-            {
-                'filename': img.name,
-                'imagePath': f"http://127.0.0.1:5000/dataset-image/{img.name}",
-                'distance': None  # Belum ada jarak, hanya menampilkan gambar
-            }
-            for img in valid_files
-        ]
-
+        extracted_files = [f.name for f in target_folder.iterdir()]
         return jsonify({
             'status': 'success',
-            'message': f'{category.capitalize()} zip uploaded and extracted successfully',
-            'data': dataset_result
+            'message': f'{category.capitalize()} ZIP extracted successfully',
+            'data': extracted_files
         })
-
-        # return jsonify({'status': 'success', 'message': f'{category.capitalize()} zip uploaded and extracted successfully'})
 
     except Exception as e:
         return jsonify({'status': 'failed', 'message': str(e)}), 500
+
+@app.route('/dataset-image/<filename>')
+def dataset_image(filename):
+    file_path = DATASET_FOLDER / filename
+    if file_path.exists():
+        mime_type, _ = mimetypes.guess_type(str(file_path))
+        return send_file(file_path, mimetype=mime_type or "image/jpeg")
+    return jsonify({"error": f"File {filename} not found"}), 404
 
 if __name__ == '__main__':
     app.run(debug=True)
