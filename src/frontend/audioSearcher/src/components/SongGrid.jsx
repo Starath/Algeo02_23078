@@ -49,10 +49,10 @@ const SongGrid = ({ songs }) => {
       <div className="w-full max-w-6xl p-4">
         <div className="flex flex-col justify-start items-center">
           <div className="w-full bg-[#092D3A] p-4 flex justify-center items-center">
-            <button className="px-4 py-2 m-2 bg-[#BABEB8] text-[#092D3A] rounded">
+            <button className="px-4 py-2 m-2 bg-[#BABEB8] text-[#092D3A] rounded font-bold">
               Album
             </button>
-            <button className="px-4 py-2 m-2 bg-[#BABEB8] text-[#092D3A] rounded">
+            <button className="px-4 py-2 m-2 bg-[#BABEB8] text-[#092D3A] rounded font-bold">
               Music
             </button>
           </div>

@@ -1,7 +1,15 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 
 const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
   const fileInputRef = useRef(null);
+  const [fileName, setFileName] = useState(""); // Untuk file biasa (gambar)
+  const [datasetFileNames, setDatasetFileNames] = useState([]); // Untuk zip dataset
+
+  const [uploadedZipFiles, setUploadedZipFiles] = useState({
+    audio: "",
+    pictures: "",
+    mapper: "",
+  })
 
   const handleFileUpload = (type, category = "") => {
     // Set accept file sesuai jenis file (image atau ZIP/MIDI)
@@ -49,11 +57,18 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
           // Update hasil berdasarkan jenis file
           if (fileExtension === "mid") {
             setResults(data.results); // Hasil dari MusicFinder (MIDI)
+            setFileName(file.name); // Set nama file MIDI
           } else if (["jpg", "jpeg", "png", "bmp"].includes(fileExtension)) {
             setUploadedImage(URL.createObjectURL(file)); // Preview gambar
             setResults(data.data); // Hasil dari albumFinder (PCA)
+            setFileName(file.name); // Set nama file gambar
           } else if (uploadType === "zip") {
-            setResults(data.data); // Hasil ZIP
+            setResults(data.data); 
+            setUploadedZipFiles((prev) => ({
+              ...prev,
+              [category]: file.name, // Tambahkan file ZIP ke kategori
+            }));
+            //setResults(data.data); // Hasil ZIP
           }
         } else {
           alert(`Failed to upload file: ${data.message}`);
@@ -69,8 +84,8 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
     <div className="w-[25%] h-[100%] p-2 flex-col gap-2 text-white lg-flex">
       <div className="bg-[#092D3A] h-[100%] rounded flex flex-col justify-around">
         
-        {/* Kotak Putih untuk Image Preview */}
-        <div className="bg-white h-[45%] flex justify-center items-center rounded m-5">
+        {/* Kotak Preview Gambar*/}
+        <div className="bg-white h-[25%] flex justify-center items-center rounded m-3">
           {uploadedImage ? (
             <img
               src={uploadedImage}
@@ -81,6 +96,11 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
             <span className="text-gray-500">No Image</span>
           )}
         </div>
+          
+        {/* Tampilkan Nama File (Gambar/MIDI) */}
+        {fileName && (
+          <div className="text-center text-white font-bold text-sm -mt-8">{fileName}</div>
+        )}
 
         {/* Input file (disembunyikan) */}
         <input
@@ -91,43 +111,57 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
         />
 
         {/* Tombol Upload */}
-        <div className="flex justify-center items-center p-4">
+        <div className="flex justify-center items-center p-8 -mt-10">
           <button
-            className="px-4 py-2 bg-[#BABEB8] text-[#092D3A] rounded"
+            className="px-10 py-1.5 bg-[#BABEB8] text-[#092D3A] rounded font-bold"
             onClick={() => handleFileUpload("image")}
           >
             Upload
           </button>
         </div>
 
+        {/* Tombol untuk Dataset */}
+        <div className="flex flex-col justify-center items-center space-y-2">
         {/* Tombol Audios */}
-        <div className="flex justify-center items-center p-2">
           <button
-            className="px-4 py-2 bg-[#BABEB8] text-[#092D3A] rounded"
+            className="px-10 py-1.5 bg-[#BABEB8] text-[#092D3A] rounded font-bold"
             onClick={() => handleFileUpload("zip", "audio")}
           >
             Audios
           </button>
-        </div>
-
-        {/* Tombol Pictures */}
-        <div className="flex justify-center items-center p-2">
+          {/* Tombol Pictures */}
           <button
-            className="px-4 py-2 bg-[#BABEB8] text-[#092D3A] rounded"
+            className="px-9 py-1.5 bg-[#BABEB8] text-[#092D3A] rounded font-bold"
             onClick={() => handleFileUpload("zip", "pictures")}
           >
             Pictures
           </button>
-        </div>
-
-        {/* Tombol Mapper */}
-        <div className="flex justify-center items-center p-2">
+          {/* Tombol Mapper */}
           <button
-            className="px-4 py-2 bg-[#BABEB8] text-[#092D3A] rounded"
+            className="px-9 py-1.5 bg-[#BABEB8] text-[#092D3A] rounded font-bold"
             onClick={() => handleFileUpload("zip", "mapper")}
-          >
+            >
             Mapper
           </button>
+        </div>
+
+        {/* Tulisan dataset yang diunggah */}
+        <div className="flex flex-col justify-center items-center p-2 space-y-1 -mt-5">
+          {uploadedZipFiles.audio && (
+            <p className="text-center text-sm text-white font-bold mt-1">
+              Audios: {uploadedZipFiles.audio}
+            </p>
+          )}
+          {uploadedZipFiles.pictures && (
+            <p className="text-center text-sm text-white font-bold mt-1">
+              Pictures: {uploadedZipFiles.pictures}
+            </p>
+          )}
+          {uploadedZipFiles.mapper && (
+            <p className="text-center text-sm text-white font-bold mt-1">
+              Mapper: {uploadedZipFiles.mapper}
+            </p>
+          )}
         </div>
       </div>
     </div>
