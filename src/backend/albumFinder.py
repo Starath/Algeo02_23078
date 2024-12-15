@@ -1,6 +1,6 @@
 from pathlib import Path
 import numpy as np
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 
 BASE_DIR = Path(__file__).resolve().parent  # Path root 'backend'
@@ -177,14 +177,26 @@ def process_uploaded_image(file_path, dataset_path):
     """
     datasetPath = Path(dataset_path)
     processedImg = []
+    valid_files=[]
 
-    # Memproses semua file dalam dataset
+     # Validasi dan proses semua file dalam dataset
     for imgPath in datasetPath.glob("*"):
-        if imgPath.suffix.lower() in ['.png', '.jpg', '.jpeg', '.bmp']:
-            grayscaleImg = preProcessing(imgPath)
-            flattenImg = flattenImg1D(grayscaleImg)
-            standardImg = standardizeImg(flattenImg)
-            processedImg.append(standardImg)
+        try:
+            if imgPath.suffix.lower() in ['.png', '.jpg', '.jpeg', '.bmp']:
+                img = Image.open(imgPath)
+                img.verify()  # Validasi file gambar
+                grayscaleImg = preProcessing(imgPath)
+                flattenImg = flattenImg1D(grayscaleImg)
+                standardImg = standardizeImg(flattenImg)
+                processedImg.append(standardImg)
+                valid_files.append(imgPath)  # Simpan path file valid
+        except UnidentifiedImageError:
+            print(f"Skipping invalid image: {imgPath}")
+        except Exception as e:
+            print(f"Error processing file {imgPath}: {e}")
+
+    if not processedImg:
+        raise ValueError("No valid images found in the dataset!")
 
     meanValue = np.mean(processedImg, axis=0)
     U = svdDecompotition(processedImg)
@@ -196,4 +208,5 @@ def process_uploaded_image(file_path, dataset_path):
     # Hitung jarak Euclidean
     sorted_distances = euclidieanDistance(queryProjection, datasetProjection)
 
-    return sorted_distances
+    # Return valid result (gunakan indeks berdasarkan valid_files)
+    return [(i, distance) for i, distance in sorted_distances if i < len(valid_files)], valid_files

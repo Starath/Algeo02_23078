@@ -3,44 +3,48 @@ import React, { useRef } from 'react';
 const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
   const fileInputRef = useRef(null);
 
-  const flaskURL = "http://127.0.0.1:5000/upload-picture";
-
-  const handleFileUpload = () => {
+  const handleFileUpload = (type, category = "") => {
+    fileInputRef.current.accept = type === "zip" ? ".zip" : "image/*";
+    fileInputRef.current.dataset.type = type; // Tandai tipe file (image/zip)
+    fileInputRef.current.dataset.category = category; // Tandai kategori untuk ZIP
     fileInputRef.current.click();
   };
 
   const handleFileChange = async (event) => {
     const file = event.target.files[0];
-    if (file) {
-      // Set image preview di kotak putih
-      const fileURL = URL.createObjectURL(file);
-      setUploadedImage(fileURL); // Perbarui state uploadedImage
+    const uploadType = fileInputRef.current.dataset.type; // 'image' atau 'zip'
+    const category = fileInputRef.current.dataset.category; // 'pictures', 'audio', 'mapper'
 
+    if (file) {
       const formData = new FormData();
       formData.append("file", file);
 
       try {
-        const response = await fetch(flaskURL, {
+        const url =
+          uploadType === "zip"
+            ? `http://127.0.0.1:5000/upload-zip/${category}` // Endpoint untuk ZIP
+            : `http://127.0.0.1:5000/upload-picture`; // Endpoint untuk gambar biasa
+
+        const response = await fetch(url, {
           method: "POST",
           body: formData,
         });
 
         const data = await response.json();
         if (response.ok) {
-          console.log("Response from Flask:", data);
           alert("File uploaded successfully!");
+          console.log("Upload result:", data);
 
-          // Kirim hasil ke SongGrid
-          if (data.status === "success") {
-            console.log("Data sent to SongGrid:", data.data); // Debug
-            setResults(data.data); // Perbarui state results di App.jsx
+          // Hanya jika gambar biasa
+          if (uploadType !== "zip") {
+            setUploadedImage(URL.createObjectURL(file)); // Preview gambar
+            setResults(data.data); // Update hasil ke SongGrid
           }
         } else {
-          console.error("Error:", data.message);
           alert(`Failed to upload file: ${data.message}`);
         }
       } catch (error) {
-        console.error("Error connecting to Flask:", error);
+        console.error("Error uploading file:", error);
         alert(`Failed to upload file: ${error.message}`);
       }
     }
@@ -75,7 +79,7 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
         <div className="flex justify-center items-center p-8">
           <button
             className="px-4 py-2 bg-[#BABEB8] text-[#092D3A] rounded"
-            onClick={handleFileUpload}
+            onClick={() => handleFileUpload("image")}
           >
             Upload
           </button>
@@ -85,7 +89,7 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
         <div className="flex justify-center items-center p-2">
           <button
             className="px-4 py-2 bg-[#BABEB8] text-[#092D3A] rounded"
-            onClick={handleFileUpload}
+            onClick={() => handleFileUpload("zip", "audio")}
           >
             Audios
           </button>
@@ -95,7 +99,7 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
         <div className="flex justify-center items-center p-2">
           <button
             className="px-4 py-2 bg-[#BABEB8] text-[#092D3A] rounded"
-            onClick={handleFileUpload}
+            onClick={() => handleFileUpload("zip", "pictures")}
           >
             Pictures
           </button>
@@ -105,7 +109,7 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
         <div className="flex justify-center items-center p-2">
           <button
             className="px-4 py-2 bg-[#BABEB8] text-[#092D3A] rounded"
-            onClick={handleFileUpload}
+            onClick={() => handleFileUpload("zip", "mapper")}
           >
             Mapper
           </button>
