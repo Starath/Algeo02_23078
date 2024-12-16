@@ -119,20 +119,7 @@ def upload_midi():
                         'distance': distance,
                         'imagePath': f"http://127.0.0.1:5000/dataset-image/{entry['pic_name']}"
                     })
-        # mapped_results = []
-        # for idx, distance in result:
-        #     image_name = valid_files[idx].name
-        #     audio_name = None
-        #     for entry in mapper:
-        #         if entry['pic_name'] == image_name:
-        #             audio_name = entry['audio_file']
-        #             break
-            
-        #     mapped_results.append({
-        #         'filename': audio_name if audio_name else image_name,  # Gunakan nama audio jika ada
-        #         'distance': distance,
-        #         'imagePath': f"http://127.0.0.1:5000/dataset-image/{image_name}"
-        #     })
+    
         matched_results = sorted(matched_results, key=lambda x: x['distance'], reverse=True)
 
         response_data = {

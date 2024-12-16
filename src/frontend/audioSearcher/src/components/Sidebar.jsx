@@ -165,7 +165,7 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
         {/* Execution Time */}
         {executionTime && (
                 <div className="text-center text-white font-bold text-sm mt-2">
-                    Execution Time: {executionTime.toFixed(2)} seconds
+                    Execution Time: {executionTime.toFixed(2)*1000} ms
                 </div>
             )}
 
