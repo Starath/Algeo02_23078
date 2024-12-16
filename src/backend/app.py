@@ -155,14 +155,12 @@ def upload_zip(category):
         allowed_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.zip'}
     elif category == "audio":
         target_folder = AUDIO_FOLDER
-        allowed_extensions = {'.midi', '.mid'}
+        allowed_extensions = {'.midi', '.mid', '.zip'}
     elif category == "mapper":
         target_folder = MAPPER_FOLDER
         allowed_extensions = {'.json', '.txt', '.zip'}
     else:
         return jsonify({'status': 'failed', 'message': 'Invalid category'}), 400
-
-    #target_folder.mkdir(parents=True, exist_ok=True)  # Buat folder jika belum ada
 
     file_extension = Path(file.filename).suffix.lower()
     if file_extension not in allowed_extensions:
@@ -174,10 +172,9 @@ def upload_zip(category):
         if file_extension == '.zip':
             # Ekstrak file ZIP
             with ZipFile(file, 'r') as zip_ref:
-                # Ambil file yang sesuai dengan ekstensi
                 valid_files = [
-                    file for file in zip_ref.namelist()
-                    if Path(file).suffix.lower() in allowed_extensions
+                    f for f in zip_ref.namelist()
+                    if Path(f).suffix.lower() in allowed_extensions
                 ]
 
                 if not valid_files:
@@ -190,27 +187,26 @@ def upload_zip(category):
                 for file_name in valid_files:
                     zip_ref.extract(file_name, target_folder)
 
-            return jsonify({
-                'status': 'success',
-                'message': f'Valid files for {category} extracted successfully'
-            })
+            # Jika kategori adalah audio, proses dataset ke dalam MIDI database
+            if category == "audio":
+                build_feature_database(str(AUDIO_FOLDER), str(MIDI_DATABASE_FILE))
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Audio ZIP extracted and processed into feature database successfully'
+                })
+            else:
+                return jsonify({
+                    'status': 'success',
+                    'message': f'Valid files for {category} extracted successfully'
+                })
         else:
             # Simpan file langsung jika bukan file ZIP
             file.save(file_path)
 
-        # Cari file mapper yang valid di folder target
-        mapper_files = list(target_folder.glob("*.json")) + list(target_folder.glob("*.txt"))
-        if not mapper_files:
-            return jsonify({'status': 'failed', 'message': 'No valid mapper file (JSON/TXT) found'}), 400
-
-        # Ambil file mapper pertama yang ditemukan
-        latest_mapper_file = mapper_files[0]
-
-        # Simpan path file mapper terbaru untuk digunakan oleh endpoint lain
-        with open(latest_mapper_file, 'r') as f:
-            mapper_data = json.load(f) if latest_mapper_file.suffix == '.json' else f.read()
-
-        return jsonify({'status': 'success', 'message': f'{category.capitalize()} file uploaded successfully'})
+        return jsonify({
+            'status': 'success',
+            'message': f'{category.capitalize()} file uploaded successfully'
+        })
 
     except Exception as e:
         return jsonify({'status': 'failed', 'message': str(e)}), 500
