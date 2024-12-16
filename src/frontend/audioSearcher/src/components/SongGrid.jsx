@@ -22,7 +22,7 @@ const SongCard = ({ fileName, distance , imagePath}) => {
 };
 
 
-const SongGrid = ({ songs }) => {
+const SongGrid = ({ songs = [] }) => {
   console.log("Data songs diterima di SongGrid:", songs);
   
   const itemsPerPage = 12; // menentukan jumlah lagu yang ditampilkan per halaman

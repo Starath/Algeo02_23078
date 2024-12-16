@@ -97,24 +97,50 @@ def upload_midi():
         with open(mapper_path, 'r') as f:
             mapper = json.load(f)
 
-        # Step 3: Map the query results to pictures
+        # Step 3: Gabungkan Cek Audio & Mapping Hasil
         matched_results = []
-        for result in results:  # Assuming results contain 'filename' of matched audio
-            matched_audio = result.get('filename')
-            for entry in mapper:
-                if entry['audio_file'] == matched_audio:
-                    distance = float(result.get('similarity'))*100
-                    matched_results.append({
-                        'filename': entry["audio_file"],
-                        'distance': distance,
-                        'imagePath': f"http://127.0.0.1:5000/dataset-image/{entry["pic_name"]}"
-                    })
+        matched_image_path = None
 
-        # Step 4: Return the matched results
-        return jsonify({
+        for entry in mapper:
+            # Jika audio yang diunggah ada di mapper, ambil path gambarnya
+            if entry['audio_file'] == file.filename and not matched_image_path:
+                matched_image_path = f"http://127.0.0.1:5000/dataset-image/{entry['pic_name']}"
+
+            # Cocokkan hasil dari query dengan audio di mapper
+            for result in results:
+                if entry['audio_file'] == result.get('filename'):
+                    distance = float(result.get('similarity')) * 100
+                    matched_results.append({
+                        'filename': entry['audio_file'],
+                        'distance': distance,
+                        'imagePath': f"http://127.0.0.1:5000/dataset-image/{entry['pic_name']}"
+                    })
+        # mapped_results = []
+        # for idx, distance in result:
+        #     image_name = valid_files[idx].name
+        #     audio_name = None
+        #     for entry in mapper:
+        #         if entry['pic_name'] == image_name:
+        #             audio_name = entry['audio_file']
+        #             break
+            
+        #     mapped_results.append({
+        #         'filename': audio_name if audio_name else image_name,  # Gunakan nama audio jika ada
+        #         'distance': distance,
+        #         'imagePath': f"http://127.0.0.1:5000/dataset-image/{image_name}"
+        #     })
+        matched_results = sorted(matched_results, key=lambda x: x['distance'], reverse=True)
+
+        response_data = {
             'status': 'success',
-            'results': matched_results if matched_results else 'No picture matches found'
-        })
+            'imagePath': matched_image_path,  # Path gambar jika ditemukan
+            'results' : matched_results,
+            'message': 'MIDI file processed successfully'
+        }
+
+
+
+        return jsonify(response_data)
 
     except Exception as e:
         return jsonify({'status': 'failed', 'message': str(e)}), 500

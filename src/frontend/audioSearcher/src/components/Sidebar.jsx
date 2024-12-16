@@ -69,7 +69,13 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
             setUploadedImage(URL.createObjectURL(file)); // Preview gambar
             setResults(data.data); // Hasil untuk gambar
           } else {
-            setResults(data.results); // Hasil untuk audio
+            if (data.imagePath) {
+              console.log("Results received:", data.results); // Log untuk memastikan data
+              setUploadedImage(data.imagePath);
+            } else {
+              setUploadedImage(null); // No image jika tidak ada di mapper
+            }
+            setResults(data.results || []);
           }
         } else {
           alert(`Failed to upload file: ${data.message}`);
