@@ -4,6 +4,7 @@ import tempfile
 from flask import Flask, request, jsonify, send_file
 import patoolib
 from flask_cors import CORS, cross_origin
+import py7zr
 from albumFinder import process_uploaded_image
 from MusicFinder import compare_query_to_database
 from DatabaseProcess import build_feature_database  # Import fungsi untuk membangun database fitur
@@ -28,6 +29,7 @@ MIDI_DATABASE_FILE = "midi_feature_database.json"
 THRESHOLD = 0.55  # Threshold similarity untuk file MIDI
 
 ALLOWED_ARCHIVES = {".zip", ".rar", ".tar", ".7z"}  # Supported archive formats
+rarfile.UNRAR_TOOL = r"C:\Users\diyah\Downloads\unrar.exe"
 
 
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
@@ -205,6 +207,7 @@ def upload_midi():
     finally:
         # Clean up the uploaded file
         file_path.unlink(missing_ok=True)
+
 @app.route('/upload-zip/<category>', methods=['POST'])
 def upload_zip(category):
     if 'file' not in request.files:
@@ -249,12 +252,31 @@ def upload_zip(category):
                     for file_name in zip_ref.namelist():
                         if Path(file_name).suffix.lower() in allowed_extensions:
                             zip_ref.extract(file_name, target_folder)
+
             elif file_extension == '.rar':
-                # Extract RAR files
+                # Extract RAR files directly into the folder
                 with rarfile.RarFile(file_path) as rar_ref:
                     for file_name in rar_ref.namelist():
-                        if Path(file_name).suffix.lower() in allowed_extensions:
-                            rar_ref.extract(file_name, target_folder)
+                        # Ensure the file has an allowed extension and is not a directory
+                        if Path(file_name).suffix.lower() in allowed_extensions and not file_name.endswith('/'):
+                            with rar_ref.open(file_name) as source_file:
+                                target_file_path = target_folder / Path(file_name).name  # Flatten to root
+                                with open(target_file_path, 'wb') as dest_file:
+                                    shutil.copyfileobj(source_file, dest_file)
+                            print(f"Extracted: {file_name} to {target_file_path}")
+
+            elif file_extension == '.7z':
+                # Extract 7z files directly into the folder
+                with py7zr.SevenZipFile(file_path, mode='r') as archive:
+                    for file_name in archive.getnames():
+                        # Check for allowed extensions and ensure it's not a directory
+                        if Path(file_name).suffix.lower() in allowed_extensions and not file_name.endswith('/'):
+                            extracted_files = archive.read([file_name])  # Extract file content
+                            target_file_path = target_folder / Path(file_name).name  # Flatten to root
+                            with open(target_file_path, 'wb') as dest_file:
+                                dest_file.write(extracted_files[file_name].read())
+                            print(f"Extracted: {file_name} to {target_file_path}")
+
             else:
                 # Directly save the uploaded file
                 shutil.move(str(file_path), str(target_folder / (uploaded_file.filename)))
