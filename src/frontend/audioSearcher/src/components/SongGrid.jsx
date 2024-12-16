@@ -22,7 +22,7 @@ const SongCard = ({ fileName, distance , imagePath}) => {
 };
 
 
-const SongGrid = ({ songs = [], setUploadMode, uploadMode }) => {
+const SongGrid = ({ songs = [], setUploadMode, uploadMode, onSearch }) => {
   console.log("Data songs diterima di SongGrid:", songs);
   
   const itemsPerPage = 12; // menentukan jumlah lagu yang ditampilkan per halaman
@@ -51,7 +51,7 @@ const SongGrid = ({ songs = [], setUploadMode, uploadMode }) => {
           <div className="flex justify-end w-full">
             <button 
               className="px-10 py-1.5 bg-[#30a06c] text-[#092D3A] rounded font-bold"
-              onClick={() => handleFileUpload("upload")}
+              onClick={onSearch}
             >
               Search
             </button>
