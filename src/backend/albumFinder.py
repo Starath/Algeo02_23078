@@ -1,6 +1,10 @@
 from pathlib import Path
 import numpy as np
 from PIL import Image, UnidentifiedImageError
+import time
+import json
+import os
+
 
 
 BASE_DIR = Path(__file__).resolve().parent  # path root 'backend'
@@ -145,42 +149,80 @@ for imgPath in datasetPath.glob("*"):
         processedImg.append(standardImg)
         
 
-def process_uploaded_image(file_path, dataset_path):
-   
+
+def process_uploaded_image(file_path, dataset_path, cache_file="dataset_cache.json"):
+    startTime = time.time()
+    
     datasetPath = Path(dataset_path)
     processedImg = []
-    valid_files=[]
+    valid_files = []
 
-     # validasi dan proses semua file dalam dataset
-    for imgPath in datasetPath.glob("*"):
-        try:
-            if imgPath.suffix.lower() in ['.png', '.jpg', '.jpeg', '.bmp']:
-                img = Image.open(imgPath)
-                img.verify()  # Validasi file gambar
-                grayscaleImg = preProcessing(imgPath)
-                flattenImg = flattenImg1D(grayscaleImg)
-                standardImg = standardizeImg(flattenImg)
-                processedImg.append(standardImg)
-                valid_files.append(imgPath)  # Simpan path file valid
-        except UnidentifiedImageError:
-            print(f"Skipping invalid image: {imgPath}")
-        except Exception as e:
-            print(f"Error processing file {imgPath}: {e}")
+    if Path(cache_file).exists():
+        with open(cache_file, "r") as f:
+            cache = json.load(f)
+        
+        cached_files = set(cache.get("validFiles", []))
+        current_files = {str(p) for p in datasetPath.glob("*") if p.suffix.lower() in ['.png', '.jpg', '.jpeg', '.bmp']}
 
-    if not processedImg:
-        raise ValueError("No valid images found in the dataset!")
+        if current_files != cached_files:
+            print("Dataset has changed. Invalidating cache...")
+            os.remove(cache_file)
 
-    meanValue = np.mean(processedImg, axis=0)
-    U = svdDecompotition(processedImg)
-    datasetProjection = projectionPCADataset(processedImg, U, 10)
+    # jika belum ada, maka buat baru
+    if not Path(cache_file).exists():
+        print("Processing new dataset and updating cache...")
+        for imgPath in datasetPath.glob("*"):
+            try:
+                if imgPath.suffix.lower() in ['.png', '.jpg', '.jpeg', '.bmp']:
+                    img = Image.open(imgPath)
+                    img.verify()  
+                    grayscaleImg = preProcessing(imgPath)
+                    flattenImg = flattenImg1D(grayscaleImg)
+                    standardImg = standardizeImg(flattenImg)
+                    processedImg.append(standardImg)
+                    valid_files.append(str(imgPath))  
+            except UnidentifiedImageError:
+                print(f"Skipping invalid image: {imgPath}")
+            except Exception as e:
+                print(f"Error processing file {imgPath}: {e}")
 
-    # memproses file query
+        if not processedImg:
+            raise ValueError("No valid images found in the dataset!")
+
+        # hitung PCA component
+        meanValue = np.mean(processedImg, axis=0)
+        U = svdDecompotition(processedImg)
+        datasetProjection = projectionPCADataset(processedImg, U, 10)
+
+        cache = {
+            "meanValue": meanValue.tolist(),
+            "U": U.tolist(),
+            "datasetProjection": datasetProjection,
+            "validFiles": valid_files,  
+        }
+        with open(cache_file, "w") as f:
+            json.dump(cache, f)
+    else:
+        # load from cache
+        print("Loading dataset from cache...")
+        with open(cache_file, "r") as f:
+            cache = json.load(f)
+        meanValue = np.array(cache["meanValue"])
+        U = np.array(cache["U"])
+        datasetProjection = np.array(cache["datasetProjection"])
+        valid_files = cache["validFiles"]
+
+    # proses query
     queryProjection = projectionPCAQuery(file_path, U, 10, meanValue)
 
-    # hitung jarak Euclidean
+    # distance
     sorted_distances = euclidieanDistance(queryProjection, datasetProjection)
 
-    # filter distances under 250
+    # sorting 
     filtered_distances = [(i, distance) for i, distance in sorted_distances if distance < 250 and i < len(valid_files)]
 
-    return filtered_distances, valid_files
+    endTime = time.time()
+    executionTime = endTime - startTime
+
+    return filtered_distances, valid_files, executionTime
+

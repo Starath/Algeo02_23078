@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 
 const SongCard = ({ fileName, distance , imagePath}) => {
-  // Tambahkan validasi default value
   const safeDistance = typeof distance === "number" ? distance.toFixed(2) : "%";
 
   return (
@@ -22,7 +21,7 @@ const SongCard = ({ fileName, distance , imagePath}) => {
 };
 
 
-const SongGrid = ({ songs }) => {
+const SongGrid = ({ songs = [], setUploadMode, uploadMode, onSearch }) => {
   console.log("Data songs diterima di SongGrid:", songs);
   
   const itemsPerPage = 12; // menentukan jumlah lagu yang ditampilkan per halaman
@@ -47,12 +46,26 @@ const SongGrid = ({ songs }) => {
   return (
     <div className="bg-[#092D3A] w-[100%] flex items-center justify-center">
       <div className="w-full max-w-6xl p-4">
-        <div className="flex flex-col justify-start items-center">
-          <div className="w-full bg-[#092D3A] p-4 flex justify-center items-center">
-            <button className="px-4 py-2 m-2 bg-[#BABEB8] text-[#092D3A] rounded">
+        <div className="flex flex-col justify-start items-center ">
+          <div className="flex justify-end w-full">
+            <button 
+              className="px-10 py-1.5 bg-[#30a06c] text-[#092D3A] rounded font-bold"
+              onClick={onSearch}
+            >
+              Search
+            </button>
+          </div>
+          <div className="w-full bg-[#092D3A] p-4 flex justify-center items-center space-x-5">
+            <button 
+              className={`px-4 py-2 rounded font-bold ${uploadMode === "pictures" ? "bg-[#277491]" : "bg-[#BABEB8] text-[#092D3A]"}`}
+              onClick={() => setUploadMode("pictures")}
+            >
               Album
             </button>
-            <button className="px-4 py-2 m-2 bg-[#BABEB8] text-[#092D3A] rounded">
+            <button 
+              className={`px-4 py-2 rounded font-bold ${uploadMode === "audio" ? "bg-[#277491]" : "bg-[#BABEB8] text-[#092D3A]"}`}
+              onClick={() => setUploadMode("audio")}
+            >
               Music
             </button>
           </div>
@@ -61,7 +74,7 @@ const SongGrid = ({ songs }) => {
         {/*song grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {currentSongs.map((song, index) => {
-            console.log(song.imagePath); // Tambahkan log di sini
+            console.log(song.imagePath); 
             return (
               <SongCard 
                 key={index}
@@ -73,7 +86,7 @@ const SongGrid = ({ songs }) => {
           })};
         </div>
 
-        {/* Pagination */}
+        {/* pagination */}
         <div className="flex justify-between items-center mt-6">
           <button
             onClick={handlePreviousPage}
