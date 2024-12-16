@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 
-const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
+const Sidebar = ({ setResults, setUploadedImage, uploadedImage, uploadMode }) => {
   const fileInputRef = useRef(null);
   const [fileName, setFileName] = useState(""); // Untuk file biasa (gambar)
   //const [datasetFileNames, setDatasetFileNames] = useState([]); // Untuk zip dataset
@@ -16,8 +16,14 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
 
   const handleFileUpload = (type, category = "") => {
     if (type === "upload") {
-      fileInputRef.current.accept = ".jpg,.jpeg,.png,.bmp,.mp3,.wav,.ogg,.flac,.midi,.mid"; // Gambar & Audio
-      fileInputRef.current.dataset.type = "upload"; // Tandai untuk "upload" biasa
+      if (uploadMode === "pictures") {
+        fileInputRef.current.accept = ".jpg,.jpeg,.png,.bmp";
+        fileInputRef.current.dataset.category = "pictures"; 
+      } else if (uploadMode === "audio") {
+        fileInputRef.current.accept = ".mp3,.wav,.ogg,.flac,.midi,.mid";
+        fileInputRef.current.dataset.category = "audio"; 
+      }
+      fileInputRef.current.dataset.type = "upload";
     } else if (type === "zip") {
       fileInputRef.current.accept =
         category === "pictures"
@@ -25,10 +31,10 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
           : category === "audio"
           ? ".mp3,.wav,.ogg,.flac,.midi,.mid,.zip" // Audio
           : ".json,.txt,.zip"; // Mapper
+      fileInputRef.current.dataset.category = category; // Tandai kategori
       fileInputRef.current.dataset.type = "zip"; // Tandai untuk ZIP
     }
 
-    fileInputRef.current.dataset.category = category; // Tandai kategori
     fileInputRef.current.click();
   };
 
@@ -37,7 +43,12 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
     if (!files.length) return;
 
     const uploadType = fileInputRef.current.dataset.type; // upload/zip
-    const category = fileInputRef.current.dataset.category; // pictures/audio/mapper
+    const category = fileInputRef.current.dataset.category || ""; // pictures/audio/mapper
+
+    if (!category) {
+      alert("Category is not defined. Please select a valid category.");
+      return;
+    }
 
     const formData = new FormData();
 
@@ -47,12 +58,12 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
       const fileExtension = file.name.split('.').pop().toLowerCase();
 
       let url = "";
-      if (["jpg", "jpeg", "png", "bmp"].includes(fileExtension)) {
-        url = "http://127.0.0.1:5000/upload-picture"; // Endpoint untuk gambar
-      } else if (["mp3", "wav", "ogg", "flac", "midi", "mid"].includes(fileExtension)) {
-        url = "http://127.0.0.1:5000/upload-midi"; // Endpoint untuk audio/MIDI
+      if (uploadMode === "pictures" && ["jpg", "jpeg", "png", "bmp"].includes(fileExtension)) {
+        url = "http://127.0.0.1:5000/upload-picture";
+      } else if (uploadMode === "audio" && ["mp3", "wav", "ogg", "flac", "midi", "mid"].includes(fileExtension)) {
+        url = "http://127.0.0.1:5000/upload-midi";
       } else {
-        alert("Unsupported file type. Please upload an image or audio file.");
+        alert(`Unsupported file type for mode: ${uploadMode}`);
         return;
       }
 
@@ -91,7 +102,7 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
         console.error("Error uploading file:", error);
         alert("Error uploading file.");
       }
-    } else {
+    } else if (uploadType === "zip"){
       // Jika "zip" file
       files.forEach((file) => formData.append("file", file));
 
@@ -235,5 +246,10 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
     </div>
   );
 };
+
+Sidebar.defaultProps = {
+  uploadMode: "pictures", // Default mode ke "pictures"
+};
+
 
 export default Sidebar;
