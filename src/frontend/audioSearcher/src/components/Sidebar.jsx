@@ -20,7 +20,7 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage, uploadMode }) =>
         fileInputRef.current.accept = ".jpg,.jpeg,.png,.bmp";
         fileInputRef.current.dataset.category = "pictures"; 
       } else if (uploadMode === "audio") {
-        fileInputRef.current.accept = ".mp3,.wav,.ogg,.flac,.midi,.mid";
+        fileInputRef.current.accept = ".midi,.mid";
         fileInputRef.current.dataset.category = "audio"; 
       }
       fileInputRef.current.dataset.type = "upload";
@@ -29,7 +29,7 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage, uploadMode }) =>
         category === "pictures"
           ? ".jpg,.jpeg,.png,.bmp,.zip" // Pictures
           : category === "audio"
-          ? ".mp3,.wav,.ogg,.flac,.midi,.mid,.zip" // Audio
+          ? ".midi,.mid,.zip" // Audio
           : ".json,.txt,.zip"; // Mapper
       fileInputRef.current.dataset.category = category; // Tandai kategori
       fileInputRef.current.dataset.type = "zip"; // Tandai untuk ZIP
@@ -60,7 +60,7 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage, uploadMode }) =>
       let url = "";
       if (uploadMode === "pictures" && ["jpg", "jpeg", "png", "bmp"].includes(fileExtension)) {
         url = "http://127.0.0.1:5000/upload-picture";
-      } else if (uploadMode === "audio" && ["mp3", "wav", "ogg", "flac", "midi", "mid"].includes(fileExtension)) {
+      } else if (uploadMode === "audio" && ["midi", "mid"].includes(fileExtension)) {
         url = "http://127.0.0.1:5000/upload-midi";
       } else {
         alert(`Unsupported file type for mode: ${uploadMode}`);
