@@ -43,16 +43,36 @@ def upload_picture():
 
     try:
         # Proses file menggunakan albumFinder.py
-        result, valid_files = process_uploaded_image(str(file_path), str(DATASET_FOLDER))
-        sorted_result = [
-            {
-                'filename': valid_files[idx].name,
+        result, valid_files, time = process_uploaded_image(str(file_path), str(DATASET_FOLDER))
+        
+        # Baca file mapper.json
+        mapper_path = MAPPER_FOLDER / "mapper.json"
+        if not mapper_path.exists():
+            return jsonify({'status': 'failed', 'message': 'Mapper file not found'}), 404
+        
+        with open(mapper_path, 'r') as f:
+            mapper = json.load(f)
+
+        # Cocokkan gambar dengan nama audio dari mapper.json
+        mapped_results = []
+        for idx, distance in result:
+            image_path = Path(valid_files[idx])  # Ensure it's a Path object
+            image_name = image_path.name  # Get the filename from the Path object
+            audio_name = None
+            
+            # Search for corresponding audio file in mapper
+            for entry in mapper:
+                if entry['pic_name'] == image_name:
+                    audio_name = entry['audio_file']
+                    break
+            
+            mapped_results.append({
+                'filename': audio_name if audio_name else image_name,  # Use audio name if available
                 'distance': distance,
-                'imagePath': f"http://127.0.0.1:5000/dataset-image/{valid_files[idx].name}"
-            }
-            for idx, distance in result
-        ]
-        return jsonify({'status': 'success', 'data': sorted_result})
+                'imagePath': f"http://127.0.0.1:5000/dataset-image/{image_name}"
+            })
+
+        return jsonify({'status': 'success', 'data': mapped_results, 'execution_time': time})
 
     except Exception as e:
         return jsonify({'status': 'failed', 'message': str(e)}), 500
@@ -82,23 +102,37 @@ def upload_midi():
         with open(mapper_path, 'r') as f:
             mapper = json.load(f)
 
-        # Step 3: Map the query results to pictures
+        # Step 3: Gabungkan Cek Audio & Mapping Hasil
         matched_results = []
-        for result in results:  # Assuming results contain 'filename' of matched audio
-            matched_audio = result.get('filename')
-            for entry in mapper:
-                if entry['audio_file'] == matched_audio:
-                    matched_results.append({
-                        'filename': entry["pic_name"],
-                        'distance': result.get('similarity'),
-                        'imagePath': f"http://127.0.0.1:5000/dataset-image/{entry["pic_name"]}"
-                    })
+        matched_image_path = None
 
-        # Step 4: Return the matched results
-        return jsonify({
+        for entry in mapper:
+            # Jika audio yang diunggah ada di mapper, ambil path gambarnya
+            if entry['audio_file'] == file.filename and not matched_image_path:
+                matched_image_path = f"http://127.0.0.1:5000/dataset-image/{entry['pic_name']}"
+
+            # Cocokkan hasil dari query dengan audio di mapper
+            for result in results:
+                if entry['audio_file'] == result.get('filename'):
+                    distance = float(result.get('similarity')) * 100
+                    matched_results.append({
+                        'filename': entry['audio_file'],
+                        'distance': distance,
+                        'imagePath': f"http://127.0.0.1:5000/dataset-image/{entry['pic_name']}"
+                    })
+    
+        matched_results = sorted(matched_results, key=lambda x: x['distance'], reverse=True)
+
+        response_data = {
             'status': 'success',
-            'results': matched_results if matched_results else 'No picture matches found'
-        })
+            'imagePath': matched_image_path,  # Path gambar jika ditemukan
+            'results' : matched_results,
+            'message': 'MIDI file processed successfully'
+        }
+
+
+
+        return jsonify(response_data)
 
     except Exception as e:
         return jsonify({'status': 'failed', 'message': str(e)}), 500
@@ -112,69 +146,71 @@ def upload_zip(category):
         return jsonify({'status': 'failed', 'message': 'No file part'}), 400
 
     file = request.files['file']
-    if file.filename == '' or not file.filename.endswith('.zip'):
-        return jsonify({'status': 'failed', 'message': 'Invalid ZIP file'}), 400
+    if not file:
+        return jsonify({'status': 'failed', 'message': 'Invalid file or not a zip file'}), 400
 
     # Tentukan folder tujuan berdasarkan kategori
     if category == "pictures":
         target_folder = DATASET_FOLDER
-        allowed_extensions = {'.jpg', '.jpeg', '.png', '.bmp'}
+        allowed_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.zip'}
     elif category == "audio":
         target_folder = AUDIO_FOLDER
         allowed_extensions = {'.midi', '.mid'}
     elif category == "mapper":
         target_folder = MAPPER_FOLDER
-        allowed_extensions = {'.json', '.txt'}  # Allow all for mapper
+        allowed_extensions = {'.json', '.txt', '.zip'}
     else:
         return jsonify({'status': 'failed', 'message': 'Invalid category'}), 400
 
-    # Simpan file ZIP sementara
-    zip_path = UPLOAD_FOLDER / secure_filename(file.filename)
-    file.save(zip_path)
+    #target_folder.mkdir(parents=True, exist_ok=True)  # Buat folder jika belum ada
+
+    file_extension = Path(file.filename).suffix.lower()
+    if file_extension not in allowed_extensions:
+        return jsonify({'status': 'failed', 'message': f'Unsupported file type: {file_extension}'}), 400
+
+    file_path = target_folder / secure_filename(file.filename)
 
     try:
-        # Hapus semua file lama di target folder
-        if target_folder.exists():
-            shutil.rmtree(target_folder)
-        target_folder.mkdir(parents=True, exist_ok=True)
+        if file_extension == '.zip':
+            # Ekstrak file ZIP
+            with ZipFile(file, 'r') as zip_ref:
+                # Ambil file yang sesuai dengan ekstensi
+                valid_files = [
+                    file for file in zip_ref.namelist()
+                    if Path(file).suffix.lower() in allowed_extensions
+                ]
 
-        # Ekstrak ZIP ke target folder
-        with ZipFile(zip_path, 'r') as zip_ref:
-            for member in zip_ref.namelist():
-                if allowed_extensions:
-                    if not any(member.lower().endswith(ext) for ext in allowed_extensions):
-                        continue  # Skip file yang tidak sesuai
-                zip_ref.extract(member, target_folder)
+                if not valid_files:
+                    return jsonify({
+                        'status': 'failed',
+                        'message': f'No valid files for {category} found in the ZIP archive'
+                    }), 400
 
-        # Hapus file ZIP setelah selesai
-        zip_path.unlink()
+                # Ekstrak hanya file yang valid ke folder tujuan
+                for file_name in valid_files:
+                    zip_ref.extract(file_name, target_folder)
 
-        # Buat daftar file valid setelah ekstraksi
-        valid_files = [file for file in target_folder.glob("*") if file.suffix.lower() in allowed_extensions]
-        
-        # Proses khusus untuk kategori audio: build feature database
-        if category == "audio":
-            from DatabaseProcess import build_feature_database  # Import fungsi di sini agar modular
-            build_feature_database(str(target_folder), str(MIDI_DATABASE_FILE))
-            message = "Audio ZIP extracted and feature database updated successfully"
+            return jsonify({
+                'status': 'success',
+                'message': f'Valid files for {category} extracted successfully'
+            })
         else:
-            message = f"{category.capitalize()} ZIP extracted successfully"
+            # Simpan file langsung jika bukan file ZIP
+            file.save(file_path)
 
-        # Respons untuk ZIP yang diproses
-        dataset_result = [
-            {
-                'filename': file.name,
-                'imagePath': f"http://127.0.0.1:5000/dataset-image/{file.name}" if category == "pictures" else None,
-                'distance': None  # Hanya untuk gambar
-            }
-            for file in valid_files
-        ]
+        # Cari file mapper yang valid di folder target
+        mapper_files = list(target_folder.glob("*.json")) + list(target_folder.glob("*.txt"))
+        if not mapper_files:
+            return jsonify({'status': 'failed', 'message': 'No valid mapper file (JSON/TXT) found'}), 400
 
-        return jsonify({
-            'status': 'success',
-            'message': message,
-            'data': dataset_result
-        })
+        # Ambil file mapper pertama yang ditemukan
+        latest_mapper_file = mapper_files[0]
+
+        # Simpan path file mapper terbaru untuk digunakan oleh endpoint lain
+        with open(latest_mapper_file, 'r') as f:
+            mapper_data = json.load(f) if latest_mapper_file.suffix == '.json' else f.read()
+
+        return jsonify({'status': 'success', 'message': f'{category.capitalize()} file uploaded successfully'})
 
     except Exception as e:
         return jsonify({'status': 'failed', 'message': str(e)}), 500
@@ -200,6 +236,45 @@ def dataset_image(filename):
         error_message = f"File {filename} not found at {file_path}"
         print(error_message)  # Debugging
         return jsonify({"error": error_message}), 404
+
+@app.route('/get-dataset-mapped', methods=['GET'])
+def get_dataset_mapped():
+    # Pastikan ketiga dataset sudah ada
+    if not DATASET_FOLDER.exists() or not AUDIO_FOLDER.exists() or not MAPPER_FOLDER.exists():
+        return jsonify({'status': 'failed', 'message': 'All datasets are not uploaded yet'}), 400
+
+    try:
+        # 1. Baca file mapper
+        mapper_files = list(MAPPER_FOLDER.glob("*.json")) + list(MAPPER_FOLDER.glob("*.txt"))
+        if not mapper_files:
+            return jsonify({'status': 'failed', 'message': 'Mapper file not found'}), 404
+
+        latest_mapper_file = mapper_files[0]
+        
+        # Baca konten file mapper
+        with open(latest_mapper_file, 'r') as f:
+            mapper = json.load(f) if latest_mapper_file.suffix == '.json' else f.read()
+
+        # 2. Buat daftar gambar sesuai mapper
+        matched_data = []
+        for entry in mapper:
+            audio_file_name = entry['audio_file']
+            picture_file = DATASET_FOLDER / entry['pic_name']
+            if picture_file.exists():
+                matched_data.append({
+                    'filename': entry['audio_file'],
+                    'imagePath': f"http://127.0.0.1:5000/dataset-image/{entry['pic_name']}",
+                    'distance': None  # Belum ada perhitungan jarak, hanya menampilkan gambar
+                })
+
+        if not matched_data:
+            return jsonify({'status': 'failed', 'message': 'No matching pictures found in the dataset'}), 404
+
+        # 3. Return data yang sudah diproses
+        return jsonify({'status': 'success', 'data': matched_data})
+
+    except Exception as e:
+        return jsonify({'status': 'failed', 'message': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
