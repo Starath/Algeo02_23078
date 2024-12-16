@@ -44,15 +44,42 @@ def upload_picture():
         # Proses file menggunakan albumFinder.py
         result, valid_files, time = process_uploaded_image(str(file_path), str(DATASET_FOLDER))
         
-        # Baca file mapper.json
-        mapper_path = MAPPER_FOLDER / "mapper.json"
-        if not mapper_path.exists():
-            return jsonify({'status': 'failed', 'message': 'Mapper file not found'}), 404
-        
-        with open(mapper_path, 'r') as f:
-            mapper = json.load(f)
+        # Step 2: Load all JSON and TXT files in the mapper folder
+        mapper_files = list(MAPPER_FOLDER.glob("*.json")) + list(MAPPER_FOLDER.glob("*.txt"))
 
-        # Cocokkan gambar dengan nama audio dari mapper.json
+        if not mapper_files:
+            return jsonify({'status': 'failed', 'message': 'No valid mapper files (JSON/TXT) found'}), 404
+
+        # Load and combine all valid mapper files
+        mapper = []
+        for file in mapper_files:
+            try:
+                with open(file, 'r') as f:
+                    if file.suffix == '.json':
+                        data = json.load(f)  # Parse JSON file
+                    else:
+                        data = f.read()  # For TXT file (read as plain text)
+                        # Optionally, convert TXT content to JSON if applicable
+                        try:
+                            data = json.loads(data)  # Attempt to parse TXT as JSON
+                        except json.JSONDecodeError:
+                            print(f"Skipping non-JSON TXT file: {file.name}")
+                            continue  # Skip invalid TXT files that are not JSON-like
+
+                    # Ensure the data is a list (or append if single dict)
+                    if isinstance(data, list):
+                        mapper.extend(data)
+                    elif isinstance(data, dict):
+                        mapper.append(data)
+                    else:
+                        print(f"Invalid data format in file: {file.name}")
+            except Exception as e:
+                print(f"Error loading file {file.name}: {e}")
+
+        if not mapper:
+            return jsonify({'status': 'failed', 'message': 'No valid mapper data found in files'}), 400
+
+
         mapped_results = []
         for idx, distance in result:
             image_path = Path(valid_files[idx])  # Ensure it's a Path object
@@ -86,31 +113,60 @@ def upload_midi():
     if not file.filename.endswith('.mid'):
         return jsonify({'status': 'failed', 'message': 'Invalid MIDI file'}), 400
 
+    # Save the uploaded MIDI file
     file_path = UPLOAD_FOLDER / secure_filename(file.filename)
     file.save(file_path)
 
     try:
         # Step 1: Proses file MIDI menggunakan MusicFinder.py
         results = compare_query_to_database(str(file_path), MIDI_DATABASE_FILE, threshold=THRESHOLD)
-        
-        # Step 2: Load the mapper JSON
-        mapper_path = MAPPER_FOLDER / "mapper.json"
-        if not mapper_path.exists():
-            return jsonify({'status': 'failed', 'message': 'Mapper file not found'}), 404
-        
-        with open(mapper_path, 'r') as f:
-            mapper = json.load(f)
 
-        # Step 3: Gabungkan Cek Audio & Mapping Hasil
+        # Step 2: Load all JSON and TXT files in the mapper folder
+        mapper_files = list(MAPPER_FOLDER.glob("*.json")) + list(MAPPER_FOLDER.glob("*.txt"))
+
+        if not mapper_files:
+            return jsonify({'status': 'failed', 'message': 'No valid mapper files (JSON/TXT) found'}), 404
+
+        # Combine data from all valid mapper files
+        mapper = []
+        for mapper_file in mapper_files:
+            try:
+                with open(mapper_file, 'r') as f:
+                    if mapper_file.suffix == '.json':
+                        data = json.load(f)  # Load JSON file
+                    else:
+                        # Attempt to parse TXT content as JSON
+                        raw_content = f.read()
+                        try:
+                            data = json.loads(raw_content)  # Try parsing TXT as JSON
+                        except json.JSONDecodeError:
+                            print(f"Skipping invalid TXT file: {mapper_file.name}")
+                            continue  # Skip files that are not valid JSON
+
+                    # Ensure data is a list or a single dictionary
+                    if isinstance(data, list):
+                        mapper.extend(data)
+                    elif isinstance(data, dict):
+                        mapper.append(data)
+                    else:
+                        print(f"Invalid format in file: {mapper_file.name}")
+            except Exception as e:
+                print(f"Error reading file {mapper_file.name}: {e}")
+
+        if not mapper:
+            return jsonify({'status': 'failed', 'message': 'No valid mapper data found in files'}), 400
+
+        # Step 3: Map Audio Results to Pictures
         matched_results = []
         matched_image_path = None
 
+        # Iterate through the mapper data and match results
         for entry in mapper:
-            # Jika audio yang diunggah ada di mapper, ambil path gambarnya
+            # If the uploaded audio matches a mapper entry, set the image path
             if entry['audio_file'] == file.filename and not matched_image_path:
                 matched_image_path = f"http://127.0.0.1:5000/dataset-image/{entry['pic_name']}"
 
-            # Cocokkan hasil dari query dengan audio di mapper
+            # Match query results (from MusicFinder) with mapper data
             for result in results:
                 if entry['audio_file'] == result.get('filename'):
                     distance = float(result.get('similarity')) * 100
@@ -119,25 +175,27 @@ def upload_midi():
                         'distance': distance,
                         'imagePath': f"http://127.0.0.1:5000/dataset-image/{entry['pic_name']}"
                     })
-    
+
+        # Sort the matched results based on distance
         matched_results = sorted(matched_results, key=lambda x: x['distance'], reverse=True)
 
+        # Prepare the response data
         response_data = {
             'status': 'success',
             'imagePath': matched_image_path,  # Path gambar jika ditemukan
-            'results' : matched_results,
+            'results': matched_results,
             'message': 'MIDI file processed successfully'
         }
-
-
 
         return jsonify(response_data)
 
     except Exception as e:
         return jsonify({'status': 'failed', 'message': str(e)}), 500
+
     finally:
         # Clean up the uploaded file
         file_path.unlink(missing_ok=True)
+
 
 @app.route('/upload-zip/<category>', methods=['POST'])
 def upload_zip(category):
@@ -158,6 +216,56 @@ def upload_zip(category):
     elif category == "mapper":
         target_folder = MAPPER_FOLDER
         allowed_extensions = {'.json', '.txt', '.zip'}
+
+        file_extension = Path(file.filename).suffix.lower()
+        if file_extension not in allowed_extensions:
+            return jsonify({'status': 'failed', 'message': f'Unsupported file type: {file_extension}'}), 400
+
+        file_path = target_folder / secure_filename(file.filename)
+
+        try:
+            if file_extension == '.zip':
+                # Extract all valid .json and .txt files from the ZIP
+                with ZipFile(file, 'r') as zip_ref:
+                    valid_files = [
+                        file for file in zip_ref.namelist()
+                        if Path(file).suffix.lower() in ['.json', '.txt']
+                    ]
+
+                    if not valid_files:
+                        return jsonify({
+                            'status': 'failed',
+                            'message': 'No valid JSON or TXT files found in the ZIP archive'
+                        }), 400
+
+                    # Extract only the valid files
+                    for file_name in valid_files:
+                        zip_ref.extract(file_name, target_folder)
+
+                # After extraction, find the first valid mapper file
+                mapper_files = list(target_folder.glob("*.json")) + list(target_folder.glob("*.txt"))
+                if not mapper_files:
+                    return jsonify({'status': 'failed', 'message': 'No valid mapper file found'}), 404
+
+                # Select the latest mapper file
+                latest_mapper_file = mapper_files[0]
+
+                # Read the mapper file
+                with open(latest_mapper_file, 'r') as f:
+                    mapper_data = json.load(f) if latest_mapper_file.suffix == '.json' else f.read()
+
+                return jsonify({
+                    'status': 'success',
+                    'message': f'Mapper file "{latest_mapper_file.name}" uploaded and extracted successfully'
+                })
+            else:
+                # Save the uploaded JSON or TXT file directly
+                file.save(file_path)
+                return jsonify({'status': 'success', 'message': 'Mapper file uploaded successfully'})
+
+        except Exception as e:
+            return jsonify({'status': 'failed', 'message': str(e)}), 500
+
     else:
         return jsonify({'status': 'failed', 'message': 'Invalid category'}), 400
 
