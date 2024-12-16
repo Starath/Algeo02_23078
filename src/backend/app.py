@@ -220,7 +220,7 @@ def upload_zip(category):
         allowed_extensions = {'.jpg', '.jpeg', '.png', '.bmp'}
     elif category == "audio":
         target_folder = AUDIO_FOLDER
-        allowed_extensions = {'.mp3', '.wav', '.ogg', '.flac', '.midi', '.mid'}
+        allowed_extensions = {'.midi', '.mid'}
     elif category == "mapper":
         target_folder = MAPPER_FOLDER
         allowed_extensions = {'.json', '.txt'}
@@ -259,6 +259,14 @@ def upload_zip(category):
                 # Directly save the uploaded file
                 shutil.move(str(file_path), str(target_folder / secure_filename(uploaded_file.filename)))
 
+        # Step 3: Process the extracted audio dataset to build the feature database
+        if category == "audio":
+            build_feature_database(str(target_folder), MIDI_DATABASE_FILE)
+            return jsonify({
+                'status': 'success',
+                'message': 'Audio dataset uploaded, extracted, and processed into MIDI feature database successfully.'
+            })
+
         return jsonify({
             'status': 'success',
             'message': f'{category.capitalize()} files uploaded successfully, previous data replaced.'
@@ -266,7 +274,6 @@ def upload_zip(category):
 
     except Exception as e:
         return jsonify({'status': 'failed', 'message': str(e)}), 500
-
 
 @app.route('/dataset-image/<filename>')
 @cross_origin() 
