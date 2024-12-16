@@ -20,3 +20,4 @@ dataMapper
 uploads
 dataset_cache.json
 midi_feature_database.json
+venv
