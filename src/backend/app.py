@@ -206,85 +206,40 @@ def upload_zip(category):
     if not file:
         return jsonify({'status': 'failed', 'message': 'Invalid file or not a zip file'}), 400
 
-    # Tentukan folder tujuan berdasarkan kategori
+    # Define the target folder based on category
     if category == "pictures":
         target_folder = DATASET_FOLDER
         allowed_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.zip'}
     elif category == "audio":
-        target_folder = BASE_DIR / "dataset" / "dataAudio"
+        target_folder = AUDIO_FOLDER
         allowed_extensions = {'.mp3', '.wav', '.ogg', '.flac', '.midi', '.mid', '.zip'}
     elif category == "mapper":
         target_folder = MAPPER_FOLDER
         allowed_extensions = {'.json', '.txt', '.zip'}
-
-        file_extension = Path(file.filename).suffix.lower()
-        if file_extension not in allowed_extensions:
-            return jsonify({'status': 'failed', 'message': f'Unsupported file type: {file_extension}'}), 400
-
-        file_path = target_folder / secure_filename(file.filename)
-
-        try:
-            if file_extension == '.zip':
-                # Extract all valid .json and .txt files from the ZIP
-                with ZipFile(file, 'r') as zip_ref:
-                    valid_files = [
-                        file for file in zip_ref.namelist()
-                        if Path(file).suffix.lower() in ['.json', '.txt']
-                    ]
-
-                    if not valid_files:
-                        return jsonify({
-                            'status': 'failed',
-                            'message': 'No valid JSON or TXT files found in the ZIP archive'
-                        }), 400
-
-                    # Extract only the valid files
-                    for file_name in valid_files:
-                        zip_ref.extract(file_name, target_folder)
-
-                # After extraction, find the first valid mapper file
-                mapper_files = list(target_folder.glob("*.json")) + list(target_folder.glob("*.txt"))
-                if not mapper_files:
-                    return jsonify({'status': 'failed', 'message': 'No valid mapper file found'}), 404
-
-                # Select the latest mapper file
-                latest_mapper_file = mapper_files[0]
-
-                # Read the mapper file
-                with open(latest_mapper_file, 'r') as f:
-                    mapper_data = json.load(f) if latest_mapper_file.suffix == '.json' else f.read()
-
-                return jsonify({
-                    'status': 'success',
-                    'message': f'Mapper file "{latest_mapper_file.name}" uploaded and extracted successfully'
-                })
-            else:
-                # Save the uploaded JSON or TXT file directly
-                file.save(file_path)
-                return jsonify({'status': 'success', 'message': 'Mapper file uploaded successfully'})
-
-        except Exception as e:
-            return jsonify({'status': 'failed', 'message': str(e)}), 500
-
     else:
         return jsonify({'status': 'failed', 'message': 'Invalid category'}), 400
 
-    #target_folder.mkdir(parents=True, exist_ok=True)  # Buat folder jika belum ada
-
+    # Check file extension
     file_extension = Path(file.filename).suffix.lower()
     if file_extension not in allowed_extensions:
         return jsonify({'status': 'failed', 'message': f'Unsupported file type: {file_extension}'}), 400
 
-    file_path = target_folder / secure_filename(file.filename)
+    file_path = UPLOAD_FOLDER / secure_filename(file.filename)
+    file.save(file_path)
 
     try:
+        # **Step 1: Clean up the target folder**
+        if target_folder.exists():
+            shutil.rmtree(target_folder)  # Delete the target folder and its contents
+        target_folder.mkdir(parents=True, exist_ok=True)  # Recreate an empty folder
+
+        # **Step 2: Process the ZIP file**
         if file_extension == '.zip':
-            # Ekstrak file ZIP
-            with ZipFile(file, 'r') as zip_ref:
-                # Ambil file yang sesuai dengan ekstensi
+            # Extract files from ZIP archive
+            with ZipFile(file_path, 'r') as zip_ref:
                 valid_files = [
-                    file for file in zip_ref.namelist()
-                    if Path(file).suffix.lower() in allowed_extensions
+                    f for f in zip_ref.namelist()
+                    if Path(f).suffix.lower() in allowed_extensions
                 ]
 
                 if not valid_files:
@@ -293,34 +248,29 @@ def upload_zip(category):
                         'message': f'No valid files for {category} found in the ZIP archive'
                     }), 400
 
-                # Ekstrak hanya file yang valid ke folder tujuan
-                for file_name in valid_files:
-                    zip_ref.extract(file_name, target_folder)
+                # Extract only valid files into the cleaned folder
+                for valid_file in valid_files:
+                    zip_ref.extract(valid_file, target_folder)
 
             return jsonify({
                 'status': 'success',
-                'message': f'Valid files for {category} extracted successfully'
+                'message': f'{category.capitalize()} ZIP uploaded and extracted successfully, previous data replaced.'
             })
         else:
-            # Simpan file langsung jika bukan file ZIP
-            file.save(file_path)
-
-        # Cari file mapper yang valid di folder target
-        mapper_files = list(target_folder.glob("*.json")) + list(target_folder.glob("*.txt"))
-        if not mapper_files:
-            return jsonify({'status': 'failed', 'message': 'No valid mapper file (JSON/TXT) found'}), 400
-
-        # Ambil file mapper pertama yang ditemukan
-        latest_mapper_file = mapper_files[0]
-
-        # Simpan path file mapper terbaru untuk digunakan oleh endpoint lain
-        with open(latest_mapper_file, 'r') as f:
-            mapper_data = json.load(f) if latest_mapper_file.suffix == '.json' else f.read()
-
-        return jsonify({'status': 'success', 'message': f'{category.capitalize()} file uploaded successfully'})
+            # Save single files directly to the cleaned folder
+            file.save(target_folder / secure_filename(file.filename))
+            return jsonify({
+                'status': 'success',
+                'message': f'{category.capitalize()} file uploaded successfully, previous data replaced.'
+            })
 
     except Exception as e:
         return jsonify({'status': 'failed', 'message': str(e)}), 500
+
+    finally:
+        # Clean up the uploaded ZIP file
+        file_path.unlink(missing_ok=True)
+
 
 @app.route('/dataset-image/<filename>')
 @cross_origin() 
