@@ -1,6 +1,10 @@
 from pathlib import Path
 import numpy as np
 from PIL import Image, UnidentifiedImageError
+import time
+import json
+import os
+
 
 
 BASE_DIR = Path(__file__).resolve().parent  # path root 'backend'
@@ -145,42 +149,84 @@ for imgPath in datasetPath.glob("*"):
         processedImg.append(standardImg)
         
 
-def process_uploaded_image(file_path, dataset_path):
-   
+
+def process_uploaded_image(file_path, dataset_path, cache_file="dataset_cache.json"):
+    startTime = time.time()
+    
     datasetPath = Path(dataset_path)
     processedImg = []
-    valid_files=[]
+    valid_files = []
 
-     # validasi dan proses semua file dalam dataset
-    for imgPath in datasetPath.glob("*"):
-        try:
-            if imgPath.suffix.lower() in ['.png', '.jpg', '.jpeg', '.bmp']:
-                img = Image.open(imgPath)
-                img.verify()  # Validasi file gambar
-                grayscaleImg = preProcessing(imgPath)
-                flattenImg = flattenImg1D(grayscaleImg)
-                standardImg = standardizeImg(flattenImg)
-                processedImg.append(standardImg)
-                valid_files.append(imgPath)  # Simpan path file valid
-        except UnidentifiedImageError:
-            print(f"Skipping invalid image: {imgPath}")
-        except Exception as e:
-            print(f"Error processing file {imgPath}: {e}")
+    # Check if the cache file needs to be invalidated
+    if Path(cache_file).exists():
+        # Compare dataset files with cached files to detect changes
+        with open(cache_file, "r") as f:
+            cache = json.load(f)
+        
+        cached_files = set(cache.get("validFiles", []))
+        current_files = {str(p) for p in datasetPath.glob("*") if p.suffix.lower() in ['.png', '.jpg', '.jpeg', '.bmp']}
 
-    if not processedImg:
-        raise ValueError("No valid images found in the dataset!")
+        # If the current dataset files differ from the cached files, delete the cache
+        if current_files != cached_files:
+            print("Dataset has changed. Invalidating cache...")
+            os.remove(cache_file)
 
-    meanValue = np.mean(processedImg, axis=0)
-    U = svdDecompotition(processedImg)
-    datasetProjection = projectionPCADataset(processedImg, U, 10)
+    # If the cache does not exist, process the dataset and create a new cache
+    if not Path(cache_file).exists():
+        print("Processing new dataset and updating cache...")
+        for imgPath in datasetPath.glob("*"):
+            try:
+                if imgPath.suffix.lower() in ['.png', '.jpg', '.jpeg', '.bmp']:
+                    img = Image.open(imgPath)
+                    img.verify()  # Validate image file
+                    grayscaleImg = preProcessing(imgPath)
+                    flattenImg = flattenImg1D(grayscaleImg)
+                    standardImg = standardizeImg(flattenImg)
+                    processedImg.append(standardImg)
+                    valid_files.append(str(imgPath))  # Store file path as string
+            except UnidentifiedImageError:
+                print(f"Skipping invalid image: {imgPath}")
+            except Exception as e:
+                print(f"Error processing file {imgPath}: {e}")
 
-    # memproses file query
+        if not processedImg:
+            raise ValueError("No valid images found in the dataset!")
+
+        # Compute PCA components
+        meanValue = np.mean(processedImg, axis=0)
+        U = svdDecompotition(processedImg)
+        datasetProjection = projectionPCADataset(processedImg, U, 10)
+
+        # Save the new cache
+        cache = {
+            "meanValue": meanValue.tolist(),
+            "U": U.tolist(),
+            "datasetProjection": datasetProjection,
+            "validFiles": valid_files,  # Store current dataset file list
+        }
+        with open(cache_file, "w") as f:
+            json.dump(cache, f)
+    else:
+        # Load from cache
+        print("Loading dataset from cache...")
+        with open(cache_file, "r") as f:
+            cache = json.load(f)
+        meanValue = np.array(cache["meanValue"])
+        U = np.array(cache["U"])
+        datasetProjection = np.array(cache["datasetProjection"])
+        valid_files = cache["validFiles"]
+
+    # Process the query file
     queryProjection = projectionPCAQuery(file_path, U, 10, meanValue)
 
-    # hitung jarak Euclidean
+    # Compute Euclidean distances
     sorted_distances = euclidieanDistance(queryProjection, datasetProjection)
 
-    # filter distances under 250
+    # Filter distances under a threshold
     filtered_distances = [(i, distance) for i, distance in sorted_distances if distance < 250 and i < len(valid_files)]
 
-    return filtered_distances, valid_files
+    endTime = time.time()
+    executionTime = endTime - startTime
+
+    return filtered_distances, valid_files, executionTime
+

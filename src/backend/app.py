@@ -42,7 +42,8 @@ def upload_picture():
 
     try:
         # Proses file menggunakan albumFinder.py
-        result, valid_files = process_uploaded_image(str(file_path), str(DATASET_FOLDER))
+        result, valid_files, time = process_uploaded_image(str(file_path), str(DATASET_FOLDER))
+        
         # Baca file mapper.json
         mapper_path = MAPPER_FOLDER / "mapper.json"
         if not mapper_path.exists():
@@ -54,20 +55,23 @@ def upload_picture():
         # Cocokkan gambar dengan nama audio dari mapper.json
         mapped_results = []
         for idx, distance in result:
-            image_name = valid_files[idx].name
+            image_path = Path(valid_files[idx])  # Ensure it's a Path object
+            image_name = image_path.name  # Get the filename from the Path object
             audio_name = None
+            
+            # Search for corresponding audio file in mapper
             for entry in mapper:
                 if entry['pic_name'] == image_name:
                     audio_name = entry['audio_file']
                     break
             
             mapped_results.append({
-                'filename': audio_name if audio_name else image_name,  # Gunakan nama audio jika ada
+                'filename': audio_name if audio_name else image_name,  # Use audio name if available
                 'distance': distance,
                 'imagePath': f"http://127.0.0.1:5000/dataset-image/{image_name}"
             })
 
-        return jsonify({'status': 'success', 'data': mapped_results})
+        return jsonify({'status': 'success', 'data': mapped_results, 'execution_time': time})
 
     except Exception as e:
         return jsonify({'status': 'failed', 'message': str(e)}), 500

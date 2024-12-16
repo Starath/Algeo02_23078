@@ -11,6 +11,9 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
     mapper: "",
   })
 
+  const [executionTime, setExecutionTime] = useState(null);
+
+
   const handleFileUpload = (type, category = "") => {
     if (type === "upload") {
       fileInputRef.current.accept = ".jpg,.jpeg,.png,.bmp,.mp3,.wav,.ogg,.flac,.midi,.mid"; // Gambar & Audio
@@ -70,6 +73,10 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
             setResults(data.data); // Hasil untuk gambar
           } else {
             setResults(data.results); // Hasil untuk audio
+          }
+
+          if (data.execution_time){
+            setExecutionTime(data.execution_time);
           }
         } else {
           alert(`Failed to upload file: ${data.message}`);
@@ -148,6 +155,13 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage }) => {
         {fileName && (
           <div className="text-center text-white font-bold text-sm -mt-8">{fileName}</div>
         )}
+
+        {/* Execution Time */}
+        {executionTime && (
+                <div className="text-center text-white font-bold text-sm mt-2">
+                    Execution Time: {executionTime.toFixed(2)} seconds
+                </div>
+            )}
 
         {/* Input file (disembunyikan) */}
         <input
