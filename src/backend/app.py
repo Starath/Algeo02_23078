@@ -3,7 +3,6 @@ import os
 import tempfile
 from flask import Flask, request, jsonify, send_file
 import patoolib
-from werkzeug.utils import secure_filename
 from flask_cors import CORS, cross_origin
 from albumFinder import process_uploaded_image
 from MusicFinder import compare_query_to_database
@@ -47,7 +46,7 @@ def upload_picture():
     if file.filename == '':
         return jsonify({'status': 'failed', 'message': 'No selected file'}), 400
 
-    file_path = UPLOAD_FOLDER / secure_filename(file.filename)
+    file_path = UPLOAD_FOLDER / (file.filename)
     file.save(file_path)
 
     try:
@@ -124,12 +123,12 @@ def upload_midi():
         return jsonify({'status': 'failed', 'message': 'Invalid MIDI file'}), 400
 
     # Save the uploaded MIDI file
-    file_path = UPLOAD_FOLDER / secure_filename(file.filename)
+    file_path = UPLOAD_FOLDER / (file.filename)
     file.save(file_path)
 
     try:
         # Step 1: Proses file MIDI menggunakan MusicFinder.py
-        results = compare_query_to_database(str(file_path), MIDI_DATABASE_FILE, threshold=THRESHOLD)
+        results, time= compare_query_to_database(str(file_path), MIDI_DATABASE_FILE, threshold=THRESHOLD)
 
         # Step 2: Load all JSON and TXT files in the mapper folder
         mapper_files = list(MAPPER_FOLDER.glob("*.json")) + list(MAPPER_FOLDER.glob("*.txt"))
@@ -194,6 +193,7 @@ def upload_midi():
             'status': 'success',
             'imagePath': matched_image_path,  # Path gambar jika ditemukan
             'results': matched_results,
+            'execution_time': time,
             'message': 'MIDI file processed successfully'
         }
 
@@ -240,7 +240,7 @@ def upload_zip(category):
                 return jsonify({'status': 'failed', 'message': f'Unsupported file type: {file_extension}'}), 400
 
             # Save or extract files
-            file_path = UPLOAD_FOLDER / secure_filename(uploaded_file.filename)
+            file_path = UPLOAD_FOLDER / (uploaded_file.filename)
             uploaded_file.save(file_path)
 
             if file_extension == '.zip':
@@ -257,7 +257,7 @@ def upload_zip(category):
                             rar_ref.extract(file_name, target_folder)
             else:
                 # Directly save the uploaded file
-                shutil.move(str(file_path), str(target_folder / secure_filename(uploaded_file.filename)))
+                shutil.move(str(file_path), str(target_folder / (uploaded_file.filename)))
 
         # Step 3: Process the extracted audio dataset to build the feature database
         if category == "audio":

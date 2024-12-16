@@ -1,4 +1,5 @@
 import json
+import time
 import numpy as np
 from scipy.spatial.distance import cosine
 from ExtractFitur import extract_features
@@ -9,7 +10,9 @@ def load_feature_database(database_path):
     with open(database_path, "r") as f:
         return json.load(f)
 
+
 def compare_query_to_database(query_file_path, database_path, window_size=20, slide=4, threshold=0.55):
+    startTime = time.time()
     database = load_feature_database(database_path)
 
     # Proses query MIDI
@@ -23,6 +26,8 @@ def compare_query_to_database(query_file_path, database_path, window_size=20, sl
         similarity = 1 - cosine(query_vector, np.array(db_vector))
         if similarity >= threshold:
             results.append({"filename": midi_file, "similarity": round(similarity, 4)})
+    endTime = time.time()
+    executionTime = endTime - startTime
 
     results.sort(key=lambda x: x["similarity"], reverse=True)
-    return results
+    return results, executionTime
