@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 
-const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage, uploadMode = "pictures" }) => {
+const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage, executionTime, uploadMode = "pictures" }) => {
   const fileInputRef = useRef(null);
   const [fileName, setFileName] = useState(""); // Untuk file biasa (gambar)
   //const [datasetFileNames, setDatasetFileNames] = useState([]); // Untuk zip dataset
@@ -11,8 +11,7 @@ const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage,
     mapper: "",
   })
 
-  const [executionTime, setExecutionTime] = useState(null);
-
+  //const [executionTime, setExecutionTime] = useState(null);
 
   const handleDatasetUpload = (type, category = "") => {
     if (type === "upload") {
@@ -72,12 +71,42 @@ const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage,
         (uploadMode === "pictures" && ["jpg", "jpeg", "png", "bmp"].includes(fileExtension)) ||
         (uploadMode === "audio" && ["mp3", "wav", "ogg", "flac", "midi", "mid"].includes(fileExtension))
       ) {
-        setUploadedImage(URL.createObjectURL(file)); // Preview file
         setUploadedFile(file); // Simpan file untuk diproses nanti oleh tombol "Search"
-        setFileName(file.name);
+
+        if (uploadMode === "pictures") {
+          // Mode Pictures: hanya preview gambar
+          setUploadedImage(URL.createObjectURL(file));
+          setFileName(file.name);
+        } else if (uploadMode === "audio") {
+          // Mode Audio: kirim ke backend untuk mendapatkan imagePath (preview gambar dari mapper)
+          const formData = new FormData();
+          formData.append("file", file);
+
+          try {
+            const response = await fetch("http://127.0.0.1:5000/upload-midi", {
+              method: "POST",
+              body: formData,
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+              setFileName(file.name); // Tampilkan nama file
+              if (data.imagePath) {
+                setUploadedImage(data.imagePath); // Preview gambar dari mapper
+              } else {
+                setUploadedImage(null); // Tidak ada gambar dari mapper
+              }
+            } else {
+              alert(`Failed to upload audio: ${data.message}`);
+            }
+          } catch (error) {
+            console.error("Error uploading audio file:", error);
+            alert("Error occurred during audio upload.");
+          }
+        }
       } else {
-        alert(`Unsupported file type for mode: ${uploadMode}`);
-      } 
+          alert(`Unsupported file type for mode: ${uploadMode}`);
+      }
     }
     // Logika untuk tombol Audios, Pictures, Mapper (zip upload)
     else if (uploadType === "zip") {
@@ -249,10 +278,10 @@ const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage,
 
         {/* Execution Time */}
         {executionTime && (
-                <div className="text-center text-white font-bold text-sm mt-2">
-                    Execution Time: {executionTime.toFixed(2)*1000} ms
-                </div>
-            )}
+          <div className="text-center text-white font-bold text-sm mt-2">
+              Execution Time: {(executionTime * 1000).toFixed(2)} ms
+          </div>
+        )}
 
         {/* Input file (disembunyikan) */}
         <input

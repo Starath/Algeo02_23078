@@ -8,6 +8,7 @@ const App = () => {
   const [uploadedImage, setUploadedImage] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [uploadMode, setUploadMode] = useState("pictures"); // Tambahkan state untuk mode
+  const [executionTime, setExecutionTime] = useState(null);
 
   const handleSearch = async () => {
     if (!uploadedFile) {
@@ -35,6 +36,9 @@ const App = () => {
       if (response.ok) {
         alert("File processed successfully!");
         setResults(data.data || data.results || []);
+        if (data.execution_time) {
+          setExecutionTime(data.execution_time);
+        }
       } else {
         alert(`Failed to process search: ${data.message}`);
       }
@@ -55,6 +59,7 @@ const App = () => {
           uploadedImage={uploadedImage}
           setUploadedFile={setUploadedFile}
           uploadMode={uploadMode}
+          executionTime={executionTime}
         />
         {/* SongGrid menerima data results sebagai props */}
         <SongGrid 
