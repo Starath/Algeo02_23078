@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 
-const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage, executionTime, uploadMode = "pictures" }) => {
+const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage, executionTime, setExecutionTime, uploadMode = "pictures" }) => {
   const fileInputRef = useRef(null);
   const [fileName, setFileName] = useState(""); // Untuk file biasa (gambar)
   //const [datasetFileNames, setDatasetFileNames] = useState([]); // Untuk zip dataset
@@ -11,7 +11,7 @@ const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage,
     mapper: "",
   })
 
-  //const [executionTime, setExecutionTime] = useState(null);
+  // const [executionTime, setExecutionTime] = useState(null);
 
   const handleDatasetUpload = (type, category = "") => {
     if (type === "upload") {
@@ -126,6 +126,9 @@ const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage,
               ...prev,
               [category]: files.map((f) => f.name).join(", "),
             }));
+            if (data.execution_time) {
+              setExecutionTime(data.execution_time); // Simpan execution time
+            }
           } else {
             alert(`Failed to upload file: ${data.message}`);
           }
@@ -135,101 +138,6 @@ const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage,
           alert("Error uploading files.");
         });
     }
-
-    // // Validasi file berdasarkan mode
-    // if (
-    //   (uploadMode === "pictures" && ["jpg", "jpeg", "png", "bmp"].includes(fileExtension)) ||
-    //   (uploadMode === "audio" && ["mp3", "wav", "ogg", "flac", "midi", "mid"].includes(fileExtension))
-    // ) {
-    //   setUploadedImage(URL.createObjectURL(file)); // Preview gambar
-    //   setFileName(file.name); // Nama file di preview
-    // } else {
-    //   alert("Unsupported file type for the current mode.");
-    // }
-
-
-    // if (!category) {
-    //   alert("Category is not defined. Please select a valid category.");
-    //   return;
-    // }
-
-    // const formData = new FormData();
-
-    // if (uploadType === "upload") {
-    //   // Jika "upload" gambar/audio
-    //   const file = files[0]; // Ambil satu file saja
-    //   const fileExtension = file.name.split('.').pop().toLowerCase();
-
-    //   let url = "";
-    //   if (uploadMode === "pictures" && ["jpg", "jpeg", "png", "bmp"].includes(fileExtension)) {
-    //     url = "http://127.0.0.1:5000/upload-picture";
-    //   } else if (uploadMode === "audio" && ["mp3", "wav", "ogg", "flac", "midi", "mid"].includes(fileExtension)) {
-    //     url = "http://127.0.0.1:5000/upload-midi";
-    //   } else {
-    //     alert(`Unsupported file type for mode: ${uploadMode}`);
-    //     return;
-    //   }
-
-    //   formData.append("file", file);
-
-    //   try {
-    //     const response = await fetch(url, {
-    //       method: "POST",
-    //       body: formData,
-    //     });
-
-    //     const data = await response.json();
-    //     if (response.ok) {
-    //       alert("File uploaded successfully!");
-    //       setFileName(file.name); // Tampilkan nama file
-    //       if (url.includes("upload-picture")) {
-    //         setUploadedImage(URL.createObjectURL(file)); // Preview gambar
-    //         setResults(data.data); // Hasil untuk gambar
-    //       } else {
-    //         if (data.imagePath) {
-    //           console.log("Results received:", data.results); // Log untuk memastikan data
-    //           setUploadedImage(data.imagePath);
-    //         } else {
-    //           setUploadedImage(null); // No image jika tidak ada di mapper
-    //         }
-    //         setResults(data.results || []);
-    //       }
-
-    //       if (data.execution_time){
-    //         setExecutionTime(data.execution_time);
-    //       }
-    //     } else {
-    //       alert(`Failed to upload file: ${data.message}`);
-    //     }
-    //   } catch (error) {
-    //     console.error("Error uploading file:", error);
-    //     alert("Error uploading file.");
-    //   }
-    // } else if (uploadType === "zip"){
-    //   // Jika "zip" file
-    //   files.forEach((file) => formData.append("file", file));
-
-    //   try {
-    //     const response = await fetch(`http://127.0.0.1:5000/upload-zip/${category}`, {
-    //       method: "POST",
-    //       body: formData,
-    //     });
-
-    //     const data = await response.json();
-    //     if (response.ok) {
-    //       alert(`${category.charAt(0).toUpperCase() + category.slice(1)} uploaded successfully!`);
-    //       setUploadedZipFiles((prev) => ({
-    //         ...prev,
-    //         [category]: files.map((f) => f.name).join(", "),
-    //       }));
-    //     } else {
-    //       alert(`Failed to upload file: ${data.message}`);
-    //     }
-    //   } catch (error) {
-    //     console.error("Error uploading files:", error);
-    //     alert("Error uploading files.");
-    //   }
-    // }
   };
 
   const fetchMappedDataset = async () => {
