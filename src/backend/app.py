@@ -1,13 +1,20 @@
 import json
+import os
+import tempfile
 from flask import Flask, request, jsonify, send_file
+import patoolib
 from werkzeug.utils import secure_filename
 from flask_cors import CORS, cross_origin
 from albumFinder import process_uploaded_image
 from MusicFinder import compare_query_to_database
+from DatabaseProcess import build_feature_database  # Import fungsi untuk membangun database fitur
 from pathlib import Path
 import mimetypes
 import shutil
 from zipfile import ZipFile
+import rarfile
+import time
+import uuid
 
 app = Flask(__name__)
 CORS(app)
@@ -20,6 +27,9 @@ AUDIO_FOLDER = BASE_DIR / "dataset" / "dataAudio"
 MAPPER_FOLDER = BASE_DIR / "dataset" / "dataMapper"
 MIDI_DATABASE_FILE = "midi_feature_database.json"
 THRESHOLD = 0.55  # Threshold similarity untuk file MIDI
+
+ALLOWED_ARCHIVES = {".zip", ".rar", ".tar", ".7z"}  # Supported archive formats
+
 
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 
@@ -195,81 +205,67 @@ def upload_midi():
     finally:
         # Clean up the uploaded file
         file_path.unlink(missing_ok=True)
-
-
 @app.route('/upload-zip/<category>', methods=['POST'])
 def upload_zip(category):
     if 'file' not in request.files:
         return jsonify({'status': 'failed', 'message': 'No file part'}), 400
 
-    file = request.files['file']
-    if not file:
-        return jsonify({'status': 'failed', 'message': 'Invalid file or not a zip file'}), 400
+    files = request.files.getlist('file')  # Retrieve multiple files
+    if not files:
+        return jsonify({'status': 'failed', 'message': 'No files uploaded'}), 400
 
     # Define the target folder based on category
     if category == "pictures":
         target_folder = DATASET_FOLDER
-        allowed_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.zip'}
+        allowed_extensions = {'.jpg', '.jpeg', '.png', '.bmp'}
     elif category == "audio":
         target_folder = AUDIO_FOLDER
-        allowed_extensions = {'.mp3', '.wav', '.ogg', '.flac', '.midi', '.mid', '.zip'}
+        allowed_extensions = {'.mp3', '.wav', '.ogg', '.flac', '.midi', '.mid'}
     elif category == "mapper":
         target_folder = MAPPER_FOLDER
-        allowed_extensions = {'.json', '.txt', '.zip'}
+        allowed_extensions = {'.json', '.txt'}
     else:
         return jsonify({'status': 'failed', 'message': 'Invalid category'}), 400
 
-    # Check file extension
-    file_extension = Path(file.filename).suffix.lower()
-    if file_extension not in allowed_extensions:
-        return jsonify({'status': 'failed', 'message': f'Unsupported file type: {file_extension}'}), 400
-
-    file_path = UPLOAD_FOLDER / secure_filename(file.filename)
-    file.save(file_path)
-
     try:
-        # **Step 1: Clean up the target folder**
+        # Step 1: Clean up the target folder
         if target_folder.exists():
-            shutil.rmtree(target_folder)  # Delete the target folder and its contents
-        target_folder.mkdir(parents=True, exist_ok=True)  # Recreate an empty folder
+            shutil.rmtree(target_folder)
+        target_folder.mkdir(parents=True, exist_ok=True)
 
-        # **Step 2: Process the ZIP file**
-        if file_extension == '.zip':
-            # Extract files from ZIP archive
-            with ZipFile(file_path, 'r') as zip_ref:
-                valid_files = [
-                    f for f in zip_ref.namelist()
-                    if Path(f).suffix.lower() in allowed_extensions
-                ]
+        # Step 2: Process each uploaded file
+        for uploaded_file in files:
+            file_extension = Path(uploaded_file.filename).suffix.lower()
+            if file_extension not in allowed_extensions and file_extension not in {'.zip', '.rar'}:
+                return jsonify({'status': 'failed', 'message': f'Unsupported file type: {file_extension}'}), 400
 
-                if not valid_files:
-                    return jsonify({
-                        'status': 'failed',
-                        'message': f'No valid files for {category} found in the ZIP archive'
-                    }), 400
+            # Save or extract files
+            file_path = UPLOAD_FOLDER / secure_filename(uploaded_file.filename)
+            uploaded_file.save(file_path)
 
-                # Extract only valid files into the cleaned folder
-                for valid_file in valid_files:
-                    zip_ref.extract(valid_file, target_folder)
+            if file_extension == '.zip':
+                # Extract ZIP files
+                with ZipFile(file_path, 'r') as zip_ref:
+                    for file_name in zip_ref.namelist():
+                        if Path(file_name).suffix.lower() in allowed_extensions:
+                            zip_ref.extract(file_name, target_folder)
+            elif file_extension == '.rar':
+                # Extract RAR files
+                with rarfile.RarFile(file_path) as rar_ref:
+                    for file_name in rar_ref.namelist():
+                        if Path(file_name).suffix.lower() in allowed_extensions:
+                            rar_ref.extract(file_name, target_folder)
+            else:
+                # Directly save the uploaded file
+                shutil.move(str(file_path), str(target_folder / secure_filename(uploaded_file.filename)))
 
-            return jsonify({
-                'status': 'success',
-                'message': f'{category.capitalize()} ZIP uploaded and extracted successfully, previous data replaced.'
-            })
-        else:
-            # Save single files directly to the cleaned folder
-            file.save(target_folder / secure_filename(file.filename))
-            return jsonify({
-                'status': 'success',
-                'message': f'{category.capitalize()} file uploaded successfully, previous data replaced.'
-            })
+        return jsonify({
+            'status': 'success',
+            'message': f'{category.capitalize()} files uploaded successfully, previous data replaced.'
+        })
 
     except Exception as e:
         return jsonify({'status': 'failed', 'message': str(e)}), 500
-
-    finally:
-        # Clean up the uploaded ZIP file
-        file_path.unlink(missing_ok=True)
 
 
 @app.route('/dataset-image/<filename>')
