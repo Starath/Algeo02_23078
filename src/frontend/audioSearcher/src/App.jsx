@@ -60,6 +60,7 @@ const App = () => {
           setUploadedFile={setUploadedFile}
           uploadMode={uploadMode}
           executionTime={executionTime}
+          setExecutionTime={setExecutionTime} 
         />
         {/* SongGrid menerima data results sebagai props */}
         <SongGrid 

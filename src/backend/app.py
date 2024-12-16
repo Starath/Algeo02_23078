@@ -210,6 +210,7 @@ def upload_midi():
 
 @app.route('/upload-zip/<category>', methods=['POST'])
 def upload_zip(category):
+    start_time = time.time()
     if 'file' not in request.files:
         return jsonify({'status': 'failed', 'message': 'No file part'}), 400
 
@@ -284,14 +285,12 @@ def upload_zip(category):
         # Step 3: Process the extracted audio dataset to build the feature database
         if category == "audio":
             build_feature_database(str(target_folder), MIDI_DATABASE_FILE)
-            return jsonify({
-                'status': 'success',
-                'message': 'Audio dataset uploaded, extracted, and processed into MIDI feature database successfully.'
-            })
-
+        
+        execution_time = time.time() - start_time  # Calculate execution time
         return jsonify({
             'status': 'success',
-            'message': f'{category.capitalize()} files uploaded successfully, previous data replaced.'
+            'message': f'{category.capitalize()} files uploaded successfully, previous data replaced.',
+            'execution_time': execution_time
         })
 
     except Exception as e:
