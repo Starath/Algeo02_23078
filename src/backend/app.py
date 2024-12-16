@@ -156,10 +156,41 @@ def upload_zip(category):
         if file_extension == '.zip':
             # Ekstrak file ZIP
             with ZipFile(file, 'r') as zip_ref:
-                zip_ref.extractall(target_folder)
+                # Ambil file yang sesuai dengan ekstensi
+                valid_files = [
+                    file for file in zip_ref.namelist()
+                    if Path(file).suffix.lower() in allowed_extensions
+                ]
+
+                if not valid_files:
+                    return jsonify({
+                        'status': 'failed',
+                        'message': f'No valid files for {category} found in the ZIP archive'
+                    }), 400
+
+                # Ekstrak hanya file yang valid ke folder tujuan
+                for file_name in valid_files:
+                    zip_ref.extract(file_name, target_folder)
+
+            return jsonify({
+                'status': 'success',
+                'message': f'Valid files for {category} extracted successfully'
+            })
         else:
             # Simpan file langsung jika bukan file ZIP
             file.save(file_path)
+
+        # Cari file mapper yang valid di folder target
+        mapper_files = list(target_folder.glob("*.json")) + list(target_folder.glob("*.txt"))
+        if not mapper_files:
+            return jsonify({'status': 'failed', 'message': 'No valid mapper file (JSON/TXT) found'}), 400
+
+        # Ambil file mapper pertama yang ditemukan
+        latest_mapper_file = mapper_files[0]
+
+        # Simpan path file mapper terbaru untuk digunakan oleh endpoint lain
+        with open(latest_mapper_file, 'r') as f:
+            mapper_data = json.load(f) if latest_mapper_file.suffix == '.json' else f.read()
 
         return jsonify({'status': 'success', 'message': f'{category.capitalize()} file uploaded successfully'})
 
@@ -195,13 +226,16 @@ def get_dataset_mapped():
         return jsonify({'status': 'failed', 'message': 'All datasets are not uploaded yet'}), 400
 
     try:
-        # 1. Baca file mapper.json
-        mapper_file = MAPPER_FOLDER / "mapper.json"
-        if not mapper_file.exists():
+        # 1. Baca file mapper
+        mapper_files = list(MAPPER_FOLDER.glob("*.json")) + list(MAPPER_FOLDER.glob("*.txt"))
+        if not mapper_files:
             return jsonify({'status': 'failed', 'message': 'Mapper file not found'}), 404
 
-        with open(mapper_file, 'r') as f:
-            mapper = json.load(f)
+        latest_mapper_file = mapper_files[0]
+        
+        # Baca konten file mapper
+        with open(latest_mapper_file, 'r') as f:
+            mapper = json.load(f) if latest_mapper_file.suffix == '.json' else f.read()
 
         # 2. Buat daftar gambar sesuai mapper
         matched_data = []
