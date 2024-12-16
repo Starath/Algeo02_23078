@@ -55,3 +55,21 @@ npm run dev
 
 ## Bagaimana cara menggunakannya
 
+1. Berikut laman saat pertama kali user masuki web
+![Imgur](https://imgur.com/XT6Nllr.jpg)
+2. Tekan tombol 'Audios' dan masukkan dataset audio berupa zip berisi file midi 
+![Imgur](https://imgur.com/SsHmIFd.jpg)
+![Imgur](https://imgur.com/v5pk3Rv.jpg)
+3. Tekan tombol 'Pictures' dan masukkan dataset gambar berupa zip berisi file jpg, jpeg, bmp, png
+![Imgur](https://imgur.com/NAub8He.jpg)
+4. Tekan tombol 'Mapper' dan masukkan mapper berupa json yang sudah mengelompokkan file file audio dengan gambarnya
+![Imgur](https://imgur.com/cQ3cKih.jpg)
+![Imgur](https://imgur.com/b1mYpyr.jpg)
+5. Pilih mode album (untuk query gambar) atau music (untuk query musik)
+
+6. Tekan tombol 'Upload' dan masukkan file yang mau dicari kemiripannya dengan dataset yang sudah dimasuki
+![Imgur](https://imgur.com/VQCZDBC.jpg)
+![Imgur](https://imgur.com/l8dI3uv.jpg)
+7. Tekan tombol search untuk mulai melakukan perbandingan query dengan dataset
+![Imgur](https://imgur.com/Qajljup.jpg)
+
