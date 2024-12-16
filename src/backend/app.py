@@ -128,50 +128,40 @@ def upload_zip(category):
         return jsonify({'status': 'failed', 'message': 'No file part'}), 400
 
     file = request.files['file']
-    if file.filename == '' or not file.filename.endswith('.zip'):
+    if not file:
         return jsonify({'status': 'failed', 'message': 'Invalid file or not a zip file'}), 400
 
     # Tentukan folder tujuan berdasarkan kategori
     if category == "pictures":
         target_folder = DATASET_FOLDER
-        allowed_extensions = {'.jpg', '.jpeg', '.png', '.bmp'}
+        allowed_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.zip'}
     elif category == "audio":
         target_folder = BASE_DIR / "dataset" / "dataAudio"
-        allowed_extensions = {'.midi', '.mid'}
+        allowed_extensions = {'.mp3', '.wav', '.ogg', '.flac', '.midi', '.mid', '.zip'}
     elif category == "mapper":
         target_folder = MAPPER_FOLDER
-        allowed_extensions = {'.json', '.txt'}  # Allow all for mapper
+        allowed_extensions = {'.json', '.txt', '.zip'}
     else:
         return jsonify({'status': 'failed', 'message': 'Invalid category'}), 400
 
-    # Simpan file ZIP sementara
-    zip_path = UPLOAD_FOLDER / secure_filename(file.filename)
-    file.save(zip_path)
+    #target_folder.mkdir(parents=True, exist_ok=True)  # Buat folder jika belum ada
+
+    file_extension = Path(file.filename).suffix.lower()
+    if file_extension not in allowed_extensions:
+        return jsonify({'status': 'failed', 'message': f'Unsupported file type: {file_extension}'}), 400
+
+    file_path = target_folder / secure_filename(file.filename)
 
     try:
-        # Hapus semua file lama di target folder
-        if target_folder.exists():
-            shutil.rmtree(target_folder)
-        target_folder.mkdir(parents=True, exist_ok=True)
+        if file_extension == '.zip':
+            # Ekstrak file ZIP
+            with ZipFile(file, 'r') as zip_ref:
+                zip_ref.extractall(target_folder)
+        else:
+            # Simpan file langsung jika bukan file ZIP
+            file.save(file_path)
 
-        # Ekstrak ZIP ke target folder
-        with ZipFile(zip_path, 'r') as zip_ref:
-            for member in zip_ref.namelist():
-                if allowed_extensions:
-                    if not any(member.lower().endswith(ext) for ext in allowed_extensions):
-                        continue  # Skip file yang tidak sesuai
-                zip_ref.extract(member, target_folder)
-
-        # Hapus file ZIP setelah selesai
-        zip_path.unlink()
-
-        return jsonify({
-            'status': 'success',
-            'message': f'{category.capitalize()} zip uploaded and extracted successfully'
-        })
-
-
-        # return jsonify({'status': 'success', 'message': f'{category.capitalize()} zip uploaded and extracted successfully'})
+        return jsonify({'status': 'success', 'message': f'{category.capitalize()} file uploaded successfully'})
 
     except Exception as e:
         return jsonify({'status': 'failed', 'message': str(e)}), 500
