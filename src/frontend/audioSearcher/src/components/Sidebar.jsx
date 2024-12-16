@@ -27,10 +27,10 @@ const Sidebar = ({ setResults, setUploadedImage, uploadedImage, uploadMode }) =>
     } else if (type === "zip") {
       fileInputRef.current.accept =
         category === "pictures"
-          ? ".jpg,.jpeg,.png,.bmp,.zip" // Pictures
+          ? ".jpg,.jpeg,.png,.bmp,.zip,.rar,.7z" // Pictures
           : category === "audio"
-          ? ".mp3,.wav,.ogg,.flac,.midi,.mid,.zip" // Audio
-          : ".json,.txt,.zip"; // Mapper
+          ? ".midi,.mid,.zip,.rar,.7z" // Audio
+          : ".json,.txt,.zip,.rar,.7z"; // Mapper
       fileInputRef.current.dataset.category = category; // Tandai kategori
       fileInputRef.current.dataset.type = "zip"; // Tandai untuk ZIP
     }
