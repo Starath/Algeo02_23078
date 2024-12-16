@@ -15,12 +15,12 @@ def compare_query_to_database(query_file_path, database_path, window_size=20, sl
     startTime = time.time()
     database = load_feature_database(database_path)
 
-    # Proses query MIDI
+    # proses query MIDI
     normalized_windows = process_midi_file(query_file_path, window_size, slide)
     query_features = extract_features(normalized_windows)
     query_vector = vectorize_features(query_features)
 
-    # Bandingkan dengan database
+    # bandingkan dengan database
     results = []
     for midi_file, db_vector in database.items():
         similarity = 1 - cosine(query_vector, np.array(db_vector))

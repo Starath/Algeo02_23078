@@ -157,33 +157,30 @@ def process_uploaded_image(file_path, dataset_path, cache_file="dataset_cache.js
     processedImg = []
     valid_files = []
 
-    # Check if the cache file needs to be invalidated
     if Path(cache_file).exists():
-        # Compare dataset files with cached files to detect changes
         with open(cache_file, "r") as f:
             cache = json.load(f)
         
         cached_files = set(cache.get("validFiles", []))
         current_files = {str(p) for p in datasetPath.glob("*") if p.suffix.lower() in ['.png', '.jpg', '.jpeg', '.bmp']}
 
-        # If the current dataset files differ from the cached files, delete the cache
         if current_files != cached_files:
             print("Dataset has changed. Invalidating cache...")
             os.remove(cache_file)
 
-    # If the cache does not exist, process the dataset and create a new cache
+    # jika belum ada, maka buat baru
     if not Path(cache_file).exists():
         print("Processing new dataset and updating cache...")
         for imgPath in datasetPath.glob("*"):
             try:
                 if imgPath.suffix.lower() in ['.png', '.jpg', '.jpeg', '.bmp']:
                     img = Image.open(imgPath)
-                    img.verify()  # Validate image file
+                    img.verify()  
                     grayscaleImg = preProcessing(imgPath)
                     flattenImg = flattenImg1D(grayscaleImg)
                     standardImg = standardizeImg(flattenImg)
                     processedImg.append(standardImg)
-                    valid_files.append(str(imgPath))  # Store file path as string
+                    valid_files.append(str(imgPath))  
             except UnidentifiedImageError:
                 print(f"Skipping invalid image: {imgPath}")
             except Exception as e:
@@ -192,22 +189,21 @@ def process_uploaded_image(file_path, dataset_path, cache_file="dataset_cache.js
         if not processedImg:
             raise ValueError("No valid images found in the dataset!")
 
-        # Compute PCA components
+        # hitung PCA component
         meanValue = np.mean(processedImg, axis=0)
         U = svdDecompotition(processedImg)
         datasetProjection = projectionPCADataset(processedImg, U, 10)
 
-        # Save the new cache
         cache = {
             "meanValue": meanValue.tolist(),
             "U": U.tolist(),
             "datasetProjection": datasetProjection,
-            "validFiles": valid_files,  # Store current dataset file list
+            "validFiles": valid_files,  
         }
         with open(cache_file, "w") as f:
             json.dump(cache, f)
     else:
-        # Load from cache
+        # load from cache
         print("Loading dataset from cache...")
         with open(cache_file, "r") as f:
             cache = json.load(f)
@@ -216,13 +212,13 @@ def process_uploaded_image(file_path, dataset_path, cache_file="dataset_cache.js
         datasetProjection = np.array(cache["datasetProjection"])
         valid_files = cache["validFiles"]
 
-    # Process the query file
+    # proses query
     queryProjection = projectionPCAQuery(file_path, U, 10, meanValue)
 
-    # Compute Euclidean distances
+    # distance
     sorted_distances = euclidieanDistance(queryProjection, datasetProjection)
 
-    # Filter distances under a threshold
+    # sorting 
     filtered_distances = [(i, distance) for i, distance in sorted_distances if distance < 250 and i < len(valid_files)]
 
     endTime = time.time()

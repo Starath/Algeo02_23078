@@ -4,10 +4,10 @@ import Sidebar from './components/Sidebar';
 import SongGrid from './components/SongGrid';
 
 const App = () => {
-  const [results, setResults] = useState([]); // State untuk menyimpan hasil dari backend
+  const [results, setResults] = useState([]); 
   const [uploadedImage, setUploadedImage] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
-  const [uploadMode, setUploadMode] = useState("pictures"); // Tambahkan state untuk mode
+  const [uploadMode, setUploadMode] = useState("pictures"); 
   const [executionTime, setExecutionTime] = useState(null);
 
   const handleSearch = async () => {

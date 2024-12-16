@@ -2,16 +2,13 @@ import React, { useRef, useState, useEffect } from 'react';
 
 const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage, executionTime, setExecutionTime, uploadMode = "pictures" }) => {
   const fileInputRef = useRef(null);
-  const [fileName, setFileName] = useState(""); // Untuk file biasa (gambar)
-  //const [datasetFileNames, setDatasetFileNames] = useState([]); // Untuk zip dataset
+  const [fileName, setFileName] = useState(""); 
 
   const [uploadedZipFiles, setUploadedZipFiles] = useState({
     audio: "",
     pictures: "",
     mapper: "",
   })
-
-  // const [executionTime, setExecutionTime] = useState(null);
 
   const handleDatasetUpload = (type, category = "") => {
     if (type === "upload") {
@@ -26,19 +23,19 @@ const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage,
     } else if (type === "zip") {
       fileInputRef.current.accept =
         category === "pictures"
-          ? ".jpg,.jpeg,.png,.bmp,.zip,.rar,.7z" // Pictures
+          ? ".jpg,.jpeg,.png,.bmp,.zip,.rar,.7z" // pictures
           : category === "audio"
-          ? ".midi,.mid,.zip,.rar,.7z" // Audio
-          : ".json,.txt,.zip,.rar,.7z"; // Mapper
-      fileInputRef.current.dataset.category = category; // Tandai kategori
-      fileInputRef.current.dataset.type = "zip"; // Tandai untuk ZIP
+          ? ".midi,.mid,.zip,.rar,.7z" // audio
+          : ".json,.txt,.zip,.rar,.7z"; // mapper
+      fileInputRef.current.dataset.category = category; 
+      fileInputRef.current.dataset.type = "zip"; // tandai untuk ZIP
     }
 
     fileInputRef.current.click();
   };
 
   const handleFileUpload = () => {
-    // Pastikan input file memiliki atribut accept sesuai dengan uploadMode
+    
     if (uploadMode === "pictures") {
       fileInputRef.current.accept = ".jpg,.jpeg,.png,.bmp";
       fileInputRef.current.dataset.category = "pictures"; 
@@ -47,8 +44,8 @@ const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage,
       fileInputRef.current.dataset.category = "audio"; 
     }
   
-    fileInputRef.current.dataset.type = "upload"; // Reset type menjadi "upload"
-    fileInputRef.current.click(); // Membuka file picker
+    fileInputRef.current.dataset.type = "upload"; 
+    fileInputRef.current.click(); 
   };   
 
   const handleFileChange = async (event) => {
@@ -58,12 +55,7 @@ const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage,
     const uploadType = fileInputRef.current.dataset.type; // upload/zip
     const category = fileInputRef.current.dataset.category || ""; // pictures/audio/mapper
 
-    // const file = files[0];
-    // const fileExtension = file.name.split('.').pop().toLowerCase();
-
-    // Logika untuk tombol Upload (preview file saja)
     if (uploadType === "upload") {
-      // Ambil satu file saja
       const file = files[0];
       const fileExtension = file.name.split('.').pop().toLowerCase();
     
@@ -71,14 +63,12 @@ const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage,
         (uploadMode === "pictures" && ["jpg", "jpeg", "png", "bmp"].includes(fileExtension)) ||
         (uploadMode === "audio" && ["mp3", "wav", "ogg", "flac", "midi", "mid"].includes(fileExtension))
       ) {
-        setUploadedFile(file); // Simpan file untuk diproses nanti oleh tombol "Search"
+        setUploadedFile(file); 
 
         if (uploadMode === "pictures") {
-          // Mode Pictures: hanya preview gambar
           setUploadedImage(URL.createObjectURL(file));
           setFileName(file.name);
         } else if (uploadMode === "audio") {
-          // Mode Audio: kirim ke backend untuk mendapatkan imagePath (preview gambar dari mapper)
           const formData = new FormData();
           formData.append("file", file);
 
@@ -90,11 +80,11 @@ const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage,
 
             const data = await response.json();
             if (response.ok) {
-              setFileName(file.name); // Tampilkan nama file
+              setFileName(file.name); 
               if (data.imagePath) {
-                setUploadedImage(data.imagePath); // Preview gambar dari mapper
+                setUploadedImage(data.imagePath); // preview gambar dari mapper
               } else {
-                setUploadedImage(null); // Tidak ada gambar dari mapper
+                setUploadedImage(null); // tidak ada gambar dari mapper
               }
             } else {
               alert(`Failed to upload audio: ${data.message}`);
@@ -108,9 +98,9 @@ const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage,
           alert(`Unsupported file type for mode: ${uploadMode}`);
       }
     }
-    // Logika untuk tombol Audios, Pictures, Mapper (zip upload)
+    // tombol Audios, Pictures, Mapper (zip upload)
     else if (uploadType === "zip") {
-      // Upload ZIP dataset
+      // upload ZIP dataset
       const formData = new FormData();
       files.forEach((file) => formData.append("file", file));
 
@@ -127,7 +117,7 @@ const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage,
               [category]: files.map((f) => f.name).join(", "),
             }));
             if (data.execution_time) {
-              setExecutionTime(data.execution_time); // Simpan execution time
+              setExecutionTime(data.execution_time); // simpan execution time
             }
           } else {
             alert(`Failed to upload file: ${data.message}`);
@@ -145,7 +135,7 @@ const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage,
       const response = await fetch('http://127.0.0.1:5000/get-dataset-mapped');
       const data = await response.json();
       if (response.ok) {
-        setResults(data.data); // Perbarui SongGrid dengan hasil mapper
+        setResults(data.data); // perbarui SongGrid
       } else {
         alert(`Failed to load dataset: ${data.message}`);
       }
@@ -156,17 +146,17 @@ const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage,
   };
   
   useEffect(() => {
-    // Jika ketiga ZIP sudah diunggah, panggil fetchMappedDataset sekali
+    // jika ketiga ZIP sudah diunggah, panggil fetchMappedDataset 
     if (uploadedZipFiles.audio && uploadedZipFiles.pictures && uploadedZipFiles.mapper) {
       fetchMappedDataset();
     }
-  }, [uploadedZipFiles]); // Jalankan ketika uploadedZipFiles berubah  
+  }, [uploadedZipFiles]); 
   
   return (
     <div className="w-[25%] h-[100%] p-2 flex-col gap-2 text-white lg-flex">
       <div className="bg-[#092D3A] h-[100%] rounded flex flex-col justify-around">
         
-        {/* Kotak Preview Gambar*/}
+        {/* preview gambar */}
         <div className="bg-white h-[25%] flex justify-center items-center rounded m-3">
           {uploadedImage ? (
             <img
@@ -179,28 +169,28 @@ const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage,
           )}
         </div>
           
-        {/* Tampilkan Nama File (Gambar/MIDI) */}
+        {/* nama file midi */}
         {fileName && (
           <div className="text-center text-white font-bold text-sm -mt-8">{fileName}</div>
         )}
 
-        {/* Execution Time */}
+        {/* Eexecution time */}
         {executionTime && (
           <div className="text-center text-white font-bold text-sm mt-2">
               Execution Time: {(executionTime * 1000).toFixed(2)} ms
           </div>
         )}
 
-        {/* Input file (disembunyikan) */}
+        {/* input file */}
         <input
           type="file"
           ref={fileInputRef}
           style={{ display: 'none' }}
           onChange={handleFileChange}
-          multiple // Mendukung multiple files
+          multiple // mendukung multiple files
         />
 
-        {/* Tombol Upload */}
+        {/* tombol upload */}
         <div className="flex justify-center items-center p-8 -mt-10">
           <button
             className="px-10 py-1.5 bg-[#BABEB8] text-[#092D3A] rounded font-bold"
@@ -210,23 +200,23 @@ const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage,
           </button>
         </div>
 
-        {/* Tombol untuk Dataset */}
+        {/* tombol dataset */}
         <div className="flex flex-col justify-center items-center space-y-2">
-        {/* Tombol Audios */}
+        {/* audio button */}
           <button
             className="px-10 py-1.5 bg-[#BABEB8] text-[#092D3A] rounded font-bold"
             onClick={() => handleDatasetUpload("zip", "audio")}
           >
             Audios
           </button>
-          {/* Tombol Pictures */}
+          {/* pictures button*/}
           <button
             className="px-9 py-1.5 bg-[#BABEB8] text-[#092D3A] rounded font-bold"
             onClick={() => handleDatasetUpload("zip", "pictures")}
           >
             Pictures
           </button>
-          {/* Tombol Mapper */}
+          {/* tombol mapper */}
           <button
             className="px-9 py-1.5 bg-[#BABEB8] text-[#092D3A] rounded font-bold"
             onClick={() => handleDatasetUpload("zip", "mapper")}
@@ -235,7 +225,7 @@ const Sidebar = ({ setResults, setUploadedImage, setUploadedFile, uploadedImage,
           </button>
         </div>
 
-        {/* Daftar Files Upload */}
+        {/* files uploaded */}
         <div className="flex flex-col justify-center items-center p-2 space-y-1 -mt-5">
           {uploadedZipFiles.audio && (
             <p className="text-center text-sm text-white font-bold mt-1">

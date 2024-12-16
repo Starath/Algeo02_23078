@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 
 const SongCard = ({ fileName, distance , imagePath}) => {
-  // Tambahkan validasi default value
   const safeDistance = typeof distance === "number" ? distance.toFixed(2) : "%";
 
   return (
@@ -75,7 +74,7 @@ const SongGrid = ({ songs = [], setUploadMode, uploadMode, onSearch }) => {
         {/*song grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {currentSongs.map((song, index) => {
-            console.log(song.imagePath); // Tambahkan log di sini
+            console.log(song.imagePath); 
             return (
               <SongCard 
                 key={index}
@@ -87,7 +86,7 @@ const SongGrid = ({ songs = [], setUploadMode, uploadMode, onSearch }) => {
           })};
         </div>
 
-        {/* Pagination */}
+        {/* pagination */}
         <div className="flex justify-between items-center mt-6">
           <button
             onClick={handlePreviousPage}
